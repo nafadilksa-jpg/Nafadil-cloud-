@@ -1,16 +1,3 @@
-تم دمج الكودين بنجاح مع الحفاظ على جميع الوظائف التي طلبتها:
-
-1. تجربة المصحف التفاعلية: الآيات قابلة للنقر، وعند الضغط على آية:
-   · يظهر "ظل متحرك" (Shadow) يمر على الآية لجذب انتباه الطفل
-   · تبدأ محاكاة التلاوة الصوتية
-2. التسلسل التعليمي الإجباري:
-   · الطفل لا يستطيع فتح الجهاز حتى يكمل جميع الآيات
-   · بعد إتمام الآيات، يظهر قسم الحديث تلقائياً
-   · بعد قراءة الحديث، يظهر زر "فتح الجهاز"
-3. الألوان: صفحة القرآن بلونين فقط (بني وبيج) كما طلبت، وصفحة الطفل بألوان زاهية وجذابة
-4. الظل المتحرك: عند بدء تشغيل الآية أو تغييرها، يظهر شريط ضوء شفاف يمر عبر النص
-
-```html
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -18,11 +5,40 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#B05A2F">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="نفاضل">
+<meta name="description" content="حماية أطفالك وعقولهم بين يديك">
 <title>نفاضل — Nafadil</title>
+
+<!-- PWA Manifest inline -->
+<script>
+const manifestData = {
+  name: "نفاضل - Nafadil",
+  short_name: "نفاضل",
+  description: "حماية أطفالك وعقولهم بين يديك",
+  start_url: "/",
+  display: "standalone",
+  background_color: "#F5EDE4",
+  theme_color: "#B05A2F",
+  orientation: "portrait",
+  icons: [
+    { src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='40' fill='%23B05A2F'/><text x='96' y='130' font-size='120' text-anchor='middle' fill='white'>ن</text></svg>", sizes: "192x192", type: "image/svg+xml" }
+  ]
+};
+const blob = new Blob([JSON.stringify(manifestData)], {type: 'application/json'});
+const manifestURL = URL.createObjectURL(blob);
+document.addEventListener('DOMContentLoaded', () => {
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = manifestURL;
+  document.head.appendChild(link);
+});
+</script>
+
 <style>
-/* ------------------------------------------------------------
+/* ============================================================
    DESIGN TOKENS
-   ------------------------------------------------------------ */
+   ============================================================ */
 :root {
   --bg:           #F5EDE4;
   --card:         #FFFFFF;
@@ -37,6 +53,7 @@
   --error:        #C0392B;
   --error-bg:     #FDECEA;
   --warning:      #D4820A;
+  --warning-bg:   #FEF3E2;
   --white:        #FFFFFF;
   --dark:         #1A0F0A;
   --shadow:       rgba(176,90,47,0.14);
@@ -46,571 +63,2071 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@300;400;500;700&display=swap');
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { width: 100%; height: 100%; background: #2a1a0f; font-family: var(--font-ui); overflow: hidden; }
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100%; height: 100%;
+  background: #2a1a0f;
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
 
 #app-shell {
   width: 100%; max-width: 420px;
   height: 100vh; max-height: 900px;
   margin: 0 auto;
   background: var(--bg);
+  border-radius: 0;
   overflow: hidden;
   position: relative;
   display: flex;
   flex-direction: column;
   box-shadow: 0 0 80px rgba(0,0,0,0.6);
 }
-@media (min-width: 500px) { #app-shell { height: 90vh; margin: 5vh auto; border-radius: 40px; } }
 
-.screen {
-  position: absolute; inset: 0; display: flex; flex-direction: column;
-  opacity: 0; pointer-events: none; transform: translateX(30px);
-  transition: all 0.35s cubic-bezier(0.4,0,0.2,1); overflow: hidden;
+@media (min-width: 500px) {
+  #app-shell {
+    height: 90vh;
+    margin: 5vh auto;
+    border-radius: 40px;
+  }
 }
-.screen.active { opacity: 1; pointer-events: all; transform: translateX(0); }
-.scroll-content { flex: 1; overflow-y: auto; padding: 18px 20px 20px; -webkit-overflow-scrolling: touch; }
+
+/* ============================================================
+   SCREENS
+   ============================================================ */
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(30px);
+  transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+  overflow: hidden;
+}
+.screen.active {
+  opacity: 1;
+  pointer-events: all;
+  transform: translateX(0);
+}
+.screen.exit {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+
+/* ============================================================
+   SCROLL CONTENT
+   ============================================================ */
+.scroll-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 18px 20px 20px;
+}
 .scroll-content::-webkit-scrollbar { display: none; }
 
+/* ============================================================
+   HEADER GRADIENT
+   ============================================================ */
 .header-grad {
   background: linear-gradient(135deg, var(--primary), var(--primary-l));
   padding: 48px 22px 22px;
   border-radius: 0 0 28px 28px;
   flex-shrink: 0;
 }
-.header-grad.dark { background: linear-gradient(135deg, #1a3a5c, #2a5080); }
+.header-grad.dark {
+  background: linear-gradient(135deg, #1a3a5c, #2a5080);
+}
+.header-grad.night {
+  background: linear-gradient(160deg, #1a0f0a 0%, #2c1810 100%);
+  border-radius: 0;
+}
+
 .back-btn {
   background: rgba(255,255,255,0.2);
   border: none; border-radius: 12px;
   padding: 8px 14px; color: white;
   font-size: 18px; cursor: pointer;
+  font-family: var(--font-ui);
   margin-bottom: 10px;
   display: inline-flex; align-items: center; gap: 6px;
 }
+
+/* ============================================================
+   CARDS
+   ============================================================ */
 .card {
   background: var(--card);
   border-radius: 20px;
-  box-shadow: 0 4px 20px rgba(176,90,47,0.14);
+  box-shadow: 0 4px 20px var(--shadow);
   margin-bottom: 14px;
   overflow: hidden;
 }
 .card-body { padding: 16px; }
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
 .btn {
-  width: 100%; padding: 16px; border-radius: 16px; border: none;
-  font-size: 16px; font-weight: 700; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 16px;
+  border-radius: 16px; border: none;
+  font-size: 16px; font-weight: 700;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  display: flex; align-items: center;
+  justify-content: center; gap: 8px;
   transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
 }
-.btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-l)); color: white; }
-.btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
-.btn-success { background: linear-gradient(135deg, var(--success), #3aaf63); color: white; }
+.btn:active { transform: scale(0.97); }
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary), var(--primary-l));
+  color: white;
+  box-shadow: 0 8px 24px rgba(176,90,47,0.35);
+}
+.btn-outline {
+  background: transparent;
+  color: var(--primary);
+  border: 2px solid var(--primary);
+}
+.btn-success {
+  background: linear-gradient(135deg, var(--success), #3aaf63);
+  color: white;
+  box-shadow: 0 8px 24px rgba(45,138,78,0.35);
+}
+.btn-danger {
+  background: linear-gradient(135deg, var(--error), #e74c3c);
+  color: white;
+}
+.btn-ghost {
+  background: rgba(176,90,47,0.1);
+  color: var(--primary);
+}
+.btn-sm {
+  padding: 8px 16px;
+  font-size: 13px;
+  border-radius: 12px;
+  width: auto;
+}
+.btn:disabled {
+  background: var(--border);
+  color: var(--muted);
+  box-shadow: none;
+  cursor: default;
+}
+
+/* ============================================================
+   INPUTS
+   ============================================================ */
+.input-wrap { margin-bottom: 16px; }
+.input-label {
+  display: block; font-size: 14px;
+  font-weight: 700; color: var(--text);
+  margin-bottom: 8px;
+}
+.input-field {
+  width: 100%;
+  background: var(--primary-bg);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  font-size: 16px; color: var(--text);
+  font-family: var(--font-ui);
+  outline: none;
+  transition: all 0.2s ease;
+  direction: rtl; text-align: right;
+}
+.input-field:focus {
+  border-color: var(--primary);
+  background: white;
+  box-shadow: 0 0 0 4px rgba(176,90,47,0.1);
+}
+
+/* ============================================================
+   BADGE
+   ============================================================ */
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 700;
+  font-family: var(--font-ui);
+}
+
+/* ============================================================
+   TOGGLE
+   ============================================================ */
 .toggle {
-  width: 44px; height: 24px; border-radius: 12px; position: relative; cursor: pointer;
-  transition: background 0.3s; border: none; flex-shrink: 0;
+  width: 44px; height: 24px;
+  border-radius: 12px;
+  position: relative; cursor: pointer;
+  transition: background 0.3s;
+  border: none; flex-shrink: 0;
 }
-.toggle::after { content: ''; position: absolute; top: 3px; right: 3px; width: 18px; height: 18px; border-radius: 50%; background: white; transition: all 0.3s; }
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 3px; right: 3px;
+  width: 18px; height: 18px;
+  border-radius: 50%; background: white;
+  transition: all 0.3s;
+}
 .toggle.on { background: var(--primary); }
 .toggle.on::after { right: 23px; }
 .toggle.off { background: var(--border); }
 
+/* ============================================================
+   BOTTOM NAV
+   ============================================================ */
 #bottom-nav {
-  display: flex; background: var(--card); border-top: 1px solid var(--border);
-  padding: 8px 0 max(16px, env(safe-area-inset-bottom)); flex-shrink: 0;
+  display: flex;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  padding: 8px 0 max(16px, env(safe-area-inset-bottom));
+  flex-shrink: 0;
 }
-.nav-tab { flex: 1; border: none; background: transparent; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 8px 0; }
-.nav-tab .nav-label { font-size: 10px; color: var(--muted); font-weight: 500; }
+.nav-tab {
+  flex: 1; border: none; background: transparent;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 3px;
+  cursor: pointer; padding: 8px 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.nav-tab .nav-icon { font-size: 22px; }
+.nav-tab .nav-label {
+  font-size: 10px; font-family: var(--font-ui);
+  color: var(--muted); font-weight: 500;
+}
 .nav-tab.active .nav-label { color: var(--primary); font-weight: 700; }
-
-/* ========== صفحات الطفل الملونة ========== */
-.child-rainbow-border { height: 4px; background: linear-gradient(90deg,#FF6B6B,#FFD93D,#6BCB77,#4D96FF,#C77DFF); border-radius: 0 0 4px 4px; }
-#screen-child-home .header-grad { background: linear-gradient(135deg, #1a3a5c, #2a5080); }
-.streak-box { background: rgba(255,255,255,0.18); border-radius: 14px; padding: 8px 14px; text-align: center; }
-.time-pill { margin-top: 14px; background: rgba(255,255,255,0.14); border-radius: 14px; padding: 12px 16px; display: flex; align-items: center; gap: 10px; }
-.app-icon-child { width: 50px; height: 50px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin: 0 auto 8px; background: #1e3a2a; }
-
-/* ========== صفحة القرآن (لونان فقط: بيج وبني) ========== */
-#screen-quran { background: #F5EDE4; overflow: hidden; }
-.quran-page-wrap { position: relative; background: #FFFFFF; border-radius: 18px; margin: 0 16px 14px; box-shadow: 0 8px 32px rgba(176,90,47,0.18); overflow: hidden; border: 1px solid #E8D5C4; }
-.quran-page-header { background: linear-gradient(135deg, #B05A2F, #D4784A); padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; }
-.quran-page-body { padding: 20px 16px; background: #FFFDF8; min-height: 320px; position: relative; }
-.verse-line {
-  width: 100%; padding: 12px 20px; font-size: 22px; font-family: var(--font-ar); line-height: 2.2;
-  text-align: center; direction: rtl; cursor: pointer; border-radius: 10px; transition: all 0.2s ease;
-  position: relative; z-index: 1; color: #2C1810; border-bottom: 1px solid rgba(176,90,47,0.08);
+.nav-dot {
+  width: 4px; height: 4px;
+  border-radius: 50%; background: var(--primary);
+  margin-top: 1px;
 }
-.verse-line.current-verse { background: rgba(176,90,47,0.08); border-right: 4px solid #B05A2F; }
-.verse-line.done { color: #2D8A4E; background: rgba(45,138,78,0.05); }
-.reading-shadow {
-  position: absolute; top: 0; left: -100%; width: 100%;
-  background: linear-gradient(90deg, transparent, rgba(176,90,47,0.35), transparent);
-  pointer-events: none; transition: left 0.5s ease-out; z-index: 10;
-  border-radius: 10px;
-}
-.hadith-card { background: #FFFFFF; border-radius: 18px; padding: 18px; border: 1px solid #E8D5C4; margin: 0 16px 14px; box-shadow: 0 4px 16px rgba(176,90,47,0.1); }
-.hadith-text { font-size: 15px; color: #2C1810; font-family: var(--font-ar); line-height: 2; text-align: right; }
-.play-btn { width: 100%; padding: 14px; border-radius: 16px; border: none; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
-.progress-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--primary), var(--primary-l)); transition: width 0.5s ease; }
 
-.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
-.stat-card { background: var(--card); border-radius: 18px; padding: 16px; box-shadow: 0 4px 16px var(--shadow); }
-.quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.quick-btn { background: var(--primary-bg); border: 1px solid var(--border); border-radius: 16px; padding: 16px 10px; text-align: center; cursor: pointer; }
-.alert-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
-.lock-btn { width: 72px; height: 72px; border-radius: 22px; border: none; font-size: 36px; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
-.fake-map { height: 200px; background: linear-gradient(135deg, #e8f4e8, #c8e4c8); position: relative; overflow: hidden; }
-.safe-zone { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 120px; height: 120px; border-radius: 50%; border: 3px dashed rgba(45,138,78,0.6); background: rgba(45,138,78,0.1); }
-.child-pin-dot { width: 16px; height: 16px; border-radius: 50%; background: var(--primary); border: 3px solid white; animation: ping 2s infinite; }
-.filter-tabs { display: flex; gap: 8px; overflow-x: auto; }
-.filter-tab { background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 20px; padding: 7px 16px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
-.filter-tab.active { background: white; color: var(--primary); }
-.day-tabs { display: flex; gap: 6px; overflow-x: auto; }
-.day-tab { background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 12px; padding: 8px 11px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+/* ============================================================
+   PROGRESS BAR
+   ============================================================ */
+.progress-bar {
+  height: 6px; background: var(--border);
+  border-radius: 3px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--primary-l));
+  transition: width 0.5s ease;
+}
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+@keyframes fadeIn {
+  from { opacity:0; transform:translateY(10px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes pulse {
+  0%,100% { opacity:1; }
+  50%      { opacity:0.5; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes ping {
+  0%   { box-shadow: 0 0 0 0 rgba(176,90,47,0.6); }
+  100% { box-shadow: 0 0 0 12px rgba(176,90,47,0); }
+}
+@keyframes pop {
+  from { transform: scale(0); }
+  to   { transform: scale(1); }
+}
+@keyframes twinkle {
+  0%,100% { opacity: 0.2; }
+  50%      { opacity: 1; }
+}
+@keyframes glow {
+  0%,100% { box-shadow: 0 0 20px rgba(176,90,47,0.4); }
+  50%      { box-shadow: 0 0 40px rgba(176,90,47,0.8); }
+}
+
+/* ============================================================
+   SPLASH SCREEN
+   ============================================================ */
+#screen-splash {
+  background: var(--bg);
+  align-items: center;
+  justify-content: center;
+}
+.splash-circles {
+  position: absolute;
+  width: 320px; height: 320px;
+  border-radius: 50%;
+  border: 1px solid rgba(176,90,47,0.15);
+  animation: pulse 3s infinite;
+}
+.splash-circles-2 {
+  width: 220px; height: 220px;
+  border: 1px solid rgba(176,90,47,0.2);
+}
+.logo-card {
+  background: white;
+  border-radius: 32px;
+  padding: 40px 52px;
+  box-shadow: 0 24px 64px rgba(176,90,47,0.18);
+  text-align: center;
+  position: relative;
+  z-index: 1;
+  animation: pop 0.7s cubic-bezier(0.34,1.56,0.64,1);
+}
+.logo-letter {
+  font-size: 80px;
+  color: var(--primary);
+  font-family: var(--font-ar);
+  line-height: 1;
+}
+.logo-ar {
+  font-size: 34px;
+  color: var(--primary);
+  font-family: var(--font-ar);
+  font-weight: 700;
+  letter-spacing: 4px;
+  margin-top: 8px;
+}
+.logo-en {
+  font-size: 14px;
+  color: var(--muted);
+  letter-spacing: 3px;
+  margin-top: 4px;
+}
+.splash-tagline {
+  margin-top: 28px;
+  color: var(--muted);
+  font-size: 16px;
+  font-family: var(--font-ar);
+  text-align: center;
+  line-height: 1.8;
+  animation: fadeIn 0.6s ease 0.6s both;
+}
+
+/* ============================================================
+   DEMO SELECTOR
+   ============================================================ */
+#screen-demo {
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+.demo-logo {
+  font-size: 56px;
+  color: var(--primary);
+  font-family: var(--font-ar);
+  text-align: center;
+  margin-bottom: 4px;
+}
+.demo-title {
+  font-size: 26px;
+  color: var(--primary);
+  font-family: var(--font-ar);
+  text-align: center;
+  margin-bottom: 6px;
+}
+.demo-sub {
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: 32px;
+  font-size: 14px;
+}
+.demo-btn-parent {
+  width: 100%; padding: 20px;
+  border-radius: 20px; border: none;
+  background: linear-gradient(135deg, var(--primary), var(--primary-l));
+  color: white; font-size: 18px; font-weight: 700;
+  font-family: var(--font-ui); cursor: pointer;
+  box-shadow: 0 10px 30px rgba(176,90,47,0.4);
+  margin-bottom: 14px;
+  display: flex; align-items: center;
+  justify-content: center; gap: 10px;
+  -webkit-tap-highlight-color: transparent;
+}
+.demo-btn-child {
+  width: 100%; padding: 20px;
+  border-radius: 20px; border: none;
+  background: linear-gradient(135deg, #1a3a5c, #2a5080);
+  color: white; font-size: 18px; font-weight: 700;
+  font-family: var(--font-ui); cursor: pointer;
+  box-shadow: 0 10px 30px rgba(26,58,92,0.4);
+  margin-bottom: 14px;
+  display: flex; align-items: center;
+  justify-content: center; gap: 10px;
+  -webkit-tap-highlight-color: transparent;
+}
+.demo-note {
+  background: rgba(176,90,47,0.08);
+  border: 1px solid rgba(176,90,47,0.18);
+  border-radius: 14px; padding: 14px;
+  color: var(--muted); font-size: 12px;
+  text-align: center; line-height: 1.7;
+  width: 100%;
+}
+
+/* ============================================================
+   PARENT DASHBOARD
+   ============================================================ */
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px; margin-bottom: 14px;
+}
+.stat-card {
+  background: var(--card);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 4px 16px var(--shadow);
+}
+.quick-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.quick-btn {
+  background: var(--primary-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px; padding: 16px 10px;
+  text-align: center; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.alert-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.alert-row:last-child { border-bottom: none; }
+.alert-icon {
+  width: 38px; height: 38px;
+  border-radius: 12px;
+  display: flex; align-items: center;
+  justify-content: center; font-size: 18px;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   LOCK BUTTON
+   ============================================================ */
+.lock-btn {
+  width: 72px; height: 72px;
+  border-radius: 22px; border: none;
+  font-size: 36px; cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1);
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.lock-btn:active { transform: scale(0.85); }
+
+/* ============================================================
+   TRACKING MAP
+   ============================================================ */
+.fake-map {
+  height: 200px;
+  background: linear-gradient(135deg, #e8f4e8, #c8e4c8);
+  position: relative; overflow: hidden;
+}
+.map-grid-h {
+  position: absolute; left: 0; right: 0;
+  height: 1px; background: rgba(255,255,255,0.5);
+}
+.map-grid-v {
+  position: absolute; top: 0; bottom: 0;
+  width: 1px; background: rgba(255,255,255,0.5);
+}
+.safe-zone {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  border: 3px dashed rgba(45,138,78,0.6);
+  background: rgba(45,138,78,0.1);
+}
+.child-pin-label {
+  background: var(--primary);
+  color: white; border-radius: 20px;
+  padding: 4px 10px; font-size: 11px;
+  font-family: var(--font-ui); font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(176,90,47,0.5);
+  margin-bottom: 4px;
+}
+.child-pin-dot {
+  width: 16px; height: 16px;
+  border-radius: 50%; background: var(--primary);
+  border: 3px solid white;
+  animation: ping 2s infinite;
+}
+
+/* ============================================================
+   APPS SCREEN
+   ============================================================ */
+.filter-tabs {
+  display: flex; gap: 8px;
+  overflow-x: auto; padding-bottom: 2px;
+}
+.filter-tabs::-webkit-scrollbar { display: none; }
+.filter-tab {
+  background: rgba(255,255,255,0.2);
+  color: white; border: none;
+  border-radius: 20px; padding: 7px 16px;
+  font-size: 13px; font-family: var(--font-ui);
+  font-weight: 700; cursor: pointer;
+  white-space: nowrap; flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.filter-tab.active {
+  background: white; color: var(--primary);
+}
+.app-row {
+  display: flex; align-items: center;
+  gap: 12px; padding: 14px;
+}
+.app-icon-box {
+  width: 50px; height: 50px;
+  border-radius: 14px;
+  display: flex; align-items: center;
+  justify-content: center; font-size: 26px;
+  flex-shrink: 0;
+}
+.app-actions {
+  display: flex; gap: 8px; padding: 0 14px 14px;
+}
+.app-action-btn {
+  flex: 1; padding: 10px;
+  border-radius: 12px; border: none;
+  font-size: 13px; font-family: var(--font-ui);
+  font-weight: 700; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ============================================================
+   SCHEDULE
+   ============================================================ */
+.day-tabs {
+  display: flex; gap: 6px; overflow-x: auto;
+}
+.day-tabs::-webkit-scrollbar { display: none; }
+.day-tab {
+  background: rgba(255,255,255,0.2);
+  color: white; border: none; border-radius: 12px;
+  padding: 8px 11px; font-size: 11px;
+  font-family: var(--font-ui); font-weight: 700;
+  cursor: pointer; white-space: nowrap;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
 .day-tab.active { background: white; color: var(--primary); }
-.chart-bars { display: flex; align-items: flex-end; gap: 4px; height: 100px; }
-.chart-bar { flex: 1; border-radius: 4px 4px 0 0; background: linear-gradient(to top, var(--primary), var(--primary-l)); transition: height 0.5s ease; min-height: 0; }
-.settings-section-title { font-size: 12px; color: var(--muted); font-weight: 700; margin-bottom: 8px; padding-right: 4px; }
-.settings-row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--border); cursor: pointer; }
-.settings-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--primary-bg); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
 
-@keyframes twinkle { 0%,100% { opacity: 0.2; } 50% { opacity: 1; } }
-@keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(176,90,47,0.6); } 100% { box-shadow: 0 0 0 12px rgba(176,90,47,0); } }
-@keyframes shadowMove { 0% { left: -100%; } 20% { left: 0%; } 80% { left: 0%; } 100% { left: 100%; } }
-@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
-@keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
+/* ============================================================
+   REPORT CHART
+   ============================================================ */
+.chart-bars {
+  display: flex; align-items: flex-end;
+  gap: 4px; height: 100px;
+}
+.chart-bar {
+  flex: 1; border-radius: 4px 4px 0 0;
+  background: linear-gradient(to top, var(--primary), var(--primary-l));
+  transition: height 0.5s ease;
+  min-height: 0;
+  position: relative;
+}
+.chart-bar.danger {
+  background: linear-gradient(to top, var(--error), #e74c3c);
+}
+
+/* ============================================================
+   QURAN SCREEN (CHILD) — لونان فقط: أبيض وبني التطبيق
+   ============================================================ */
+#screen-quran {
+  background: #F5EDE4;
+  overflow: hidden;
+}
+
+/* صفحة المصحف */
+.quran-page-wrap {
+  position: relative;
+  background: #FFFFFF;
+  border-radius: 18px;
+  margin: 0 16px 14px;
+  box-shadow: 0 8px 32px rgba(176,90,47,0.18), 0 2px 8px rgba(0,0,0,0.08);
+  overflow: hidden;
+  border: 1px solid #E8D5C4;
+}
+.quran-page-header {
+  background: linear-gradient(135deg, #B05A2F, #D4784A);
+  padding: 12px 18px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.quran-page-body {
+  padding: 20px 16px;
+  background: #FFFDF8;
+  min-height: 260px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  position: relative;
+}
+/* خطوط المصحف التزيينية */
+.quran-page-body::before {
+  content: '';
+  position: absolute; inset: 10px;
+  border: 1px solid rgba(176,90,47,0.12);
+  border-radius: 8px; pointer-events: none;
+}
+.quran-page-body::after {
+  content: '';
+  position: absolute; inset: 16px;
+  border: 1px solid rgba(176,90,47,0.07);
+  border-radius: 6px; pointer-events: none;
+}
+
+/* الآيات */
+.verse-line {
+  width: 100%;
+  padding: 10px 20px;
+  font-size: 22px;
+  font-family: var(--font-ar);
+  line-height: 2.2;
+  text-align: center;
+  direction: rtl;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: background 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+.verse-line.active {
+  background: rgba(176,90,47,0.08);
+}
+/* ظل القراءة يمشي مع الآية */
+.verse-highlight {
+  background: linear-gradient(90deg, transparent, rgba(176,90,47,0.15), transparent);
+  border-radius: 8px;
+  transition: all 0.1s linear;
+}
+.verse-line.locked {
+  color: #C8A882;
+  cursor: not-allowed;
+}
+.verse-line.done {
+  color: #2D8A4E;
+}
+.verse-line.current {
+  color: #2C1810;
+  font-size: 24px;
+}
+
+/* فاصل الآيات */
+.verse-separator {
+  color: #B05A2F;
+  font-size: 14px;
+  margin: 2px 6px;
+}
+
+/* الظل المتحرك */
+@keyframes shadowMove {
+  from { left: -100%; }
+  to   { left: 100%; }
+}
+.reading-shadow {
+  position: absolute;
+  top: 0; height: 100%;
+  width: 60px;
+  background: linear-gradient(90deg, transparent, rgba(176,90,47,0.2), transparent);
+  pointer-events: none;
+  animation: none;
+}
+
+/* قسم الحديث */
+.hadith-card {
+  background: #FFFFFF;
+  border-radius: 18px; padding: 18px;
+  border: 1px solid #E8D5C4;
+  margin: 0 16px 14px;
+  box-shadow: 0 4px 16px rgba(176,90,47,0.1);
+}
+.hadith-text {
+  font-size: 15px;
+  color: #2C1810;
+  font-family: var(--font-ar);
+  line-height: 2;
+  text-align: right;
+}
+
+.play-btn {
+  width: 100%; padding: 14px;
+  border-radius: 16px; border: none;
+  font-size: 16px; font-weight: 700;
+  font-family: var(--font-ui);
+  cursor: pointer; margin-top: 12px;
+  display: flex; align-items: center;
+  justify-content: center; gap: 8px;
+  transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* شريط تقدم القرآن */
+.quran-progress-wrap {
+  padding: 10px 16px;
+  background: #FAF0E8;
+  border-top: 1px solid #E8D5C4;
+}
+
+/* ============================================================
+   CHILD HOME — ألوان الأطفال
+   ============================================================ */
+.child-rainbow-border {
+  height: 4px;
+  background: linear-gradient(90deg,#FF6B6B,#FFD93D,#6BCB77,#4D96FF,#C77DFF);
+  border-radius: 0 0 4px 4px;
+}
+.child-achievement-card {
+  border-radius: 20px; padding: 16px;
+  margin: 0 0 14px 0;
+  background: white;
+  border: 2px solid transparent;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+}
+.child-app-icon {
+  width: 54px; height: 54px;
+  border-radius: 16px;
+  display: flex; align-items: center;
+  justify-content: center; font-size: 26px;
+  margin: 0 auto 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* ============================================================
+   CHILD HOME
+   ============================================================ */
+#screen-child-home .header-grad {
+  background: linear-gradient(135deg, #1a3a5c, #2a5080);
+}
+.streak-box {
+  background: rgba(255,255,255,0.18);
+  border-radius: 14px; padding: 8px 14px;
+  text-align: center;
+}
+.time-pill {
+  margin-top: 14px;
+  background: rgba(255,255,255,0.14);
+  border-radius: 14px; padding: 12px 16px;
+  display: flex; align-items: center; gap: 10px;
+}
+.app-icon-child {
+  width: 50px; height: 50px;
+  border-radius: 14px;
+  display: flex; align-items: center;
+  justify-content: center; font-size: 24px;
+  margin: 0 auto 8px;
+}
+
+/* ============================================================
+   SETTINGS
+   ============================================================ */
+.settings-section-title {
+  font-size: 12px; color: var(--muted);
+  font-weight: 700; margin-bottom: 8px;
+  padding-right: 4px;
+}
+.settings-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.settings-row:last-child { border-bottom: none; }
+.settings-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px; background: var(--primary-bg);
+  display: flex; align-items: center;
+  justify-content: center; font-size: 18px;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   INSTALL BANNER
+   ============================================================ */
+#install-banner {
+  position: fixed; bottom: 20px;
+  left: 50%; transform: translateX(-50%);
+  background: var(--primary);
+  color: white; border-radius: 16px;
+  padding: 14px 20px;
+  box-shadow: 0 8px 32px rgba(176,90,47,0.5);
+  display: none; align-items: center; gap: 12px;
+  z-index: 999; max-width: 360px; width: 90%;
+  animation: fadeIn 0.4s ease;
+}
+#install-banner.show { display: flex; }
 </style>
 </head>
 <body>
 
 <div id="app-shell">
 
-  <!-- SPLASH SCREEN -->
+  <!-- ══════════════════════════════════════════
+       SPLASH SCREEN
+       ══════════════════════════════════════════ -->
   <div class="screen active" id="screen-splash">
-    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;">
-      <div class="logo-card" style="background:white;border-radius:32px;padding:40px 52px;text-align:center;animation:pop 0.7s ease;">
-        <div style="font-size:80px;color:#B05A2F;font-family:var(--font-ar);">ن</div>
-        <div style="font-size:34px;color:#B05A2F;font-family:var(--font-ar);font-weight:700;">نفـاضـل</div>
-        <div style="font-size:14px;color:#9E7B6B;letter-spacing:3px;">Nafadil</div>
-      </div>
-      <div style="margin-top:28px;color:#9E7B6B;font-size:16px;text-align:center;">حماية أطفالك وعقولهم بين يديك</div>
+    <div class="splash-circles"></div>
+    <div class="splash-circles splash-circles-2"></div>
+    <div class="logo-card">
+      <div class="logo-letter">ن</div>
+      <div class="logo-ar">نفـاضـل</div>
+      <div class="logo-en">Nafadil</div>
+    </div>
+    <div class="splash-tagline">
+      حماية أطفالك وعقولهم بين يديك
     </div>
   </div>
 
-  <!-- DEMO SELECTOR -->
+  <!-- ══════════════════════════════════════════
+       DEMO SELECTOR
+       ══════════════════════════════════════════ -->
   <div class="screen" id="screen-demo">
-    <div style="text-align:center;padding:60px 32px;">
-      <div style="font-size:56px;color:#B05A2F;">ن</div>
-      <div style="font-size:26px;color:#B05A2F;margin-bottom:6px;">نفـاضـل</div>
-      <div style="color:#9E7B6B;margin-bottom:32px;">اختر الوضع الذي تريد تجربته</div>
-      <button onclick="goParent()" style="width:100%;padding:20px;background:linear-gradient(135deg,#B05A2F,#D4784A);color:white;border:none;border-radius:20px;font-size:18px;font-weight:700;margin-bottom:14px;cursor:pointer;">👨‍👩‍👧 وضع ولي الأمر</button>
-      <button onclick="goChild()" style="width:100%;padding:20px;background:linear-gradient(135deg,#1a3a5c,#2a5080);color:white;border:none;border-radius:20px;font-size:18px;font-weight:700;margin-bottom:14px;cursor:pointer;">👦 وضع الطفل</button>
-      <div style="background:rgba(176,90,47,0.08);border-radius:14px;padding:14px;font-size:12px;color:#9E7B6B;">💡 نموذج تجريبي كامل لتطبيق نفاضل</div>
+    <div class="demo-logo">ن</div>
+    <div class="demo-title">نفـاضـل</div>
+    <div class="demo-sub">اختر الوضع الذي تريد تجربته</div>
+    <button class="demo-btn-parent" onclick="goParent()">
+      👨‍👩‍👧 وضع ولي الأمر
+    </button>
+    <button class="demo-btn-child" onclick="goChild()">
+      👦 وضع الطفل — تجربة شاشة القرآن
+    </button>
+
+    <!-- زر إضافة طفل — واضح ومميز -->
+    <div style="width:100%;background:white;border-radius:20px;padding:16px;margin-bottom:14px;box-shadow:0 4px 20px rgba(176,90,47,0.12);border:2px dashed #B05A2F;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#B05A2F,#D4784A);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">➕</div>
+        <div style="flex:1;">
+          <div style="font-size:15px;font-weight:800;color:#2C1810;">إضافة طفل جديد</div>
+          <div style="font-size:12px;color:#9E7B6B;margin-top:2px;">اربط جهاز طفلك بحسابك</div>
+        </div>
+        <button onclick="alert('ستُرسل رمط ربط لجهاز الطفل ✅')"
+          style="background:linear-gradient(135deg,#B05A2F,#D4784A);border:none;border-radius:12px;padding:10px 16px;color:white;font-weight:700;font-size:13px;cursor:pointer;">
+          ربط
+        </button>
+      </div>
+    </div>
+    <div class="demo-note">
+      💡 نموذج تجريبي كامل لتطبيق نفاضل<br>
+      يعمل على جميع الأجهزة بدون تنزيل
     </div>
   </div>
 
-  <!-- PARENT DASHBOARD -->
+  <!-- ══════════════════════════════════════════
+       PARENT DASHBOARD
+       ══════════════════════════════════════════ -->
   <div class="screen" id="screen-parent">
     <div class="header-grad">
       <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div><p style="color:rgba(255,255,255,0.7);font-size:13px;">مرحباً</p><h2 style="color:white;font-size:22px;">أبو فيصل 👋</h2></div>
+        <div>
+          <p style="color:rgba(255,255,255,0.7);font-size:13px;margin-bottom:2px;">مرحباً</p>
+          <h2 style="color:white;font-size:22px;font-family:var(--font-ar);">أبو فيصل 👋</h2>
+        </div>
         <button onclick="navTo('screen-settings')" style="background:rgba(255,255,255,0.2);border:none;border-radius:50%;width:44px;height:44px;font-size:20px;cursor:pointer;">⚙️</button>
       </div>
-      <div style="margin-top:14px;background:rgba(255,255,255,0.18);border-radius:14px;padding:10px 16px;display:flex;align-items:center;gap:10px;">
-        <div id="status-dot" style="width:10px;height:10px;border-radius:50%;background:#4ade80;animation:ping 2s infinite;"></div>
-        <span style="color:white;font-size:13px;flex:1;">فيصل — 📱 الجهاز نشط</span>
+      <div id="device-status-pill" style="margin-top:14px;background:rgba(255,255,255,0.18);border-radius:14px;padding:10px 16px;display:flex;align-items:center;gap:10px;">
+        <div id="status-dot" style="width:10px;height:10px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite;flex-shrink:0;"></div>
+        <span id="status-text" style="color:white;font-size:13px;flex:1;">فيصل — 📱 الجهاز نشط</span>
+        <span style="color:rgba(255,255,255,0.6);font-size:11px;">الآن</span>
       </div>
     </div>
+
     <div class="scroll-content">
+      <!-- Lock button -->
       <div class="card">
         <div style="padding:18px;display:flex;align-items:center;gap:16px;">
-          <button class="lock-btn" id="lock-btn" onclick="toggleLock()" style="background:linear-gradient(135deg,#2D8A4E,#3aaf63);">🔓</button>
-          <div style="flex:1;"><div id="lock-label" style="font-size:17px;font-weight:700;">الجهاز مفتوح الآن</div><div id="lock-sub" style="font-size:13px;color:var(--muted);">اضغط لإقفال الجهاز فوراً</div></div>
+          <button class="lock-btn" id="lock-btn" onclick="toggleLock()" style="background:linear-gradient(135deg,#2D8A4E,#3aaf63);box-shadow:0 8px 24px rgba(45,138,78,0.45);">🔓</button>
+          <div style="flex:1;">
+            <div id="lock-label" style="font-size:17px;font-weight:700;color:var(--text);">الجهاز مفتوح الآن</div>
+            <div id="lock-sub" style="font-size:13px;color:var(--muted);margin-top:4px;">اضغط لإقفال الجهاز فوراً</div>
+          </div>
           <span id="lock-badge" class="badge" style="background:rgba(45,138,78,0.12);color:var(--success);">نشط</span>
         </div>
-        <div id="lock-footer" style="display:none;background:var(--error-bg);padding:10px 18px;font-size:12px;color:var(--error);"></div>
-      </div>
-      <div class="stat-grid">
-        <div class="stat-card"><div style="font-size:24px;">📱</div><div style="font-size:18px;font-weight:700;color:var(--warning);">2س 14د</div><div style="font-size:11px;color:var(--muted);">وقت الشاشة اليوم</div></div>
-        <div class="stat-card"><div style="font-size:24px;">📍</div><div style="font-size:18px;font-weight:700;color:var(--success);">المنزل</div><div style="font-size:11px;color:var(--muted);">الموقع الأخير</div></div>
-        <div class="stat-card"><div style="font-size:24px;">📲</div><div style="font-size:18px;font-weight:700;color:var(--primary);">2</div><div style="font-size:11px;color:var(--muted);">تطبيقات جديدة</div></div>
-        <div class="stat-card"><div style="font-size:24px;">📖</div><div style="font-size:18px;font-weight:700;color:var(--success);">3/3 ✅</div><div style="font-size:11px;color:var(--muted);">آيات اليوم</div></div>
-      </div>
-      <div class="card card-body">
-        <div style="font-weight:700;margin-bottom:12px;">⚡ إجراءات سريعة</div>
-        <div class="quick-grid">
-          <button class="quick-btn" onclick="navTo('screen-tracking')"><div style="font-size:26px;">📍</div><div>تتبع الموقع</div></button>
-          <button class="quick-btn" onclick="navTo('screen-apps')"><div style="font-size:26px;">📱</div><div>التطبيقات</div></button>
-          <button class="quick-btn" onclick="navTo('screen-schedule')"><div style="font-size:26px;">⏰</div><div>جدول الأوقات</div></button>
-          <button class="quick-btn" onclick="navTo('screen-report')"><div style="font-size:26px;">📊</div><div>تقرير اليوم</div></button>
+        <div id="lock-footer" style="display:none;background:var(--error-bg);padding:10px 18px;font-size:12px;color:var(--error);border-top:1px solid rgba(192,57,43,0.15);">
+          ⏱ مقفل منذ: 0 دقيقة
         </div>
       </div>
+
+      <!-- Stats -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div style="font-size:24px;margin-bottom:6px;">📱</div>
+          <div style="font-size:18px;font-weight:700;color:var(--warning);">2س 14د</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">وقت الشاشة اليوم</div>
+        </div>
+        <div class="stat-card">
+          <div style="font-size:24px;margin-bottom:6px;">📍</div>
+          <div style="font-size:18px;font-weight:700;color:var(--success);">المنزل</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">الموقع الأخير</div>
+        </div>
+        <div class="stat-card">
+          <div style="font-size:24px;margin-bottom:6px;">📲</div>
+          <div style="font-size:18px;font-weight:700;color:var(--primary);">2</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">تطبيقات جديدة</div>
+        </div>
+        <div class="stat-card">
+          <div style="font-size:24px;margin-bottom:6px;">📖</div>
+          <div style="font-size:18px;font-weight:700;color:var(--success);">3/3 ✅</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">آيات اليوم</div>
+        </div>
+      </div>
+
+      <!-- Quick actions -->
       <div class="card card-body">
-        <div style="font-weight:700;margin-bottom:12px;">🔔 آخر التنبيهات</div>
-        <div class="alert-row"><div class="alert-icon" style="background:rgba(212,130,10,0.12);width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;">📲</div><div style="flex:1;"><div>فيصل حمّل تطبيق TikTok</div><div style="font-size:11px;color:var(--muted);">منذ 10 دقائق</div></div><button class="btn-outline" style="padding:6px 12px;font-size:12px;width:auto;" onclick="navTo('screen-apps')">مراجعة</button></div>
-        <div class="alert-row"><div class="alert-icon" style="background:rgba(192,57,43,0.1);">📍</div><div style="flex:1;"><div>خرج من نطاق المنزل الآمن</div><div style="font-size:11px;color:var(--muted);">منذ ساعتين</div></div></div>
-        <div class="alert-row" style="border-bottom:none;"><div class="alert-icon" style="background:rgba(45,138,78,0.1);">📖</div><div style="flex:1;"><div>قرأ آية الكرسي عند الفتح</div><div style="font-size:11px;color:var(--muted);">منذ 3 ساعات</div></div></div>
+        <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;">⚡ إجراءات سريعة</div>
+        <div class="quick-grid">
+          <button class="quick-btn" onclick="navTo('screen-tracking')">
+            <div style="font-size:26px;margin-bottom:6px;">📍</div>
+            <div style="font-size:12px;color:var(--text);font-weight:700;font-family:var(--font-ui);">تتبع الموقع</div>
+          </button>
+          <button class="quick-btn" onclick="navTo('screen-apps')">
+            <div style="font-size:26px;margin-bottom:6px;">📱</div>
+            <div style="font-size:12px;color:var(--text);font-weight:700;font-family:var(--font-ui);">التطبيقات</div>
+          </button>
+          <button class="quick-btn" onclick="navTo('screen-schedule')">
+            <div style="font-size:26px;margin-bottom:6px;">⏰</div>
+            <div style="font-size:12px;color:var(--text);font-weight:700;font-family:var(--font-ui);">جدول الأوقات</div>
+          </button>
+          <button class="quick-btn" onclick="navTo('screen-report')">
+            <div style="font-size:26px;margin-bottom:6px;">📊</div>
+            <div style="font-size:12px;color:var(--text);font-weight:700;font-family:var(--font-ui);">تقرير اليوم</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Alerts -->
+      <div class="card card-body">
+        <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;">🔔 آخر التنبيهات</div>
+        <div class="alert-row">
+          <div class="alert-icon" style="background:rgba(212,130,10,0.12);">📲</div>
+          <div style="flex:1;">
+            <div style="font-size:13px;color:var(--text);">فيصل حمّل تطبيق TikTok</div>
+            <div style="font-size:11px;color:var(--muted);">منذ 10 دقائق</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="navTo('screen-apps')">مراجعة</button>
+        </div>
+        <div class="alert-row">
+          <div class="alert-icon" style="background:rgba(192,57,43,0.1);">📍</div>
+          <div style="flex:1;">
+            <div style="font-size:13px;color:var(--text);">خرج من نطاق المنزل الآمن</div>
+            <div style="font-size:11px;color:var(--muted);">منذ ساعتين</div>
+          </div>
+        </div>
+        <div class="alert-row" style="border-bottom:none;">
+          <div class="alert-icon" style="background:rgba(45,138,78,0.1);">📖</div>
+          <div style="flex:1;">
+            <div style="font-size:13px;color:var(--text);">قرأ آية الكرسي عند الفتح</div>
+            <div style="font-size:11px;color:var(--muted);">منذ 3 ساعات</div>
+          </div>
+        </div>
       </div>
     </div>
+
     <nav id="bottom-nav">
-      <button class="nav-tab active" onclick="switchTab('home')"><span class="nav-icon">🏠</span><span class="nav-label">الرئيسية</span></button>
-      <button class="nav-tab" onclick="switchTab('tracking')"><span class="nav-icon">📍</span><span class="nav-label">التتبع</span></button>
-      <button class="nav-tab" onclick="switchTab('apps')"><span class="nav-icon">📱</span><span class="nav-label">التطبيقات</span></button>
-      <button class="nav-tab" onclick="switchTab('schedule')"><span class="nav-icon">⏰</span><span class="nav-label">الجدول</span></button>
-      <button class="nav-tab" onclick="goDemo()"><span class="nav-icon">🔄</span><span class="nav-label">تبديل</span></button>
+      <button class="nav-tab active" id="nav-home" onclick="switchTab('home')">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">الرئيسية</span>
+        <div class="nav-dot"></div>
+      </button>
+      <button class="nav-tab" id="nav-tracking" onclick="switchTab('tracking')">
+        <span class="nav-icon">📍</span>
+        <span class="nav-label">التتبع</span>
+      </button>
+      <button class="nav-tab" id="nav-apps" onclick="switchTab('apps')">
+        <span class="nav-icon">📱</span>
+        <span class="nav-label">التطبيقات</span>
+      </button>
+      <button class="nav-tab" id="nav-schedule" onclick="switchTab('schedule')">
+        <span class="nav-icon">⏰</span>
+        <span class="nav-label">الجدول</span>
+      </button>
+      <button class="nav-tab" onclick="goDemo()">
+        <span class="nav-icon">🔄</span>
+        <span class="nav-label">تبديل</span>
+      </button>
     </nav>
   </div>
 
-  <!-- TRACKING SCREEN -->
+  <!-- ══════════════════════════════════════════
+       TRACKING
+       ══════════════════════════════════════════ -->
   <div class="screen" id="screen-tracking">
-    <div class="header-grad"><button class="back-btn" onclick="goBackParent()">← رجوع</button><h2 style="color:white;">📍 تتبع الموقع</h2></div>
+    <div class="header-grad">
+      <button class="back-btn" onclick="goBackParent()">← رجوع</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <h2 style="color:white;font-size:20px;font-family:var(--font-ar);">📍 تتبع الموقع</h2>
+        <span style="display:flex;align-items:center;gap:6px;color:white;font-size:12px;">
+          <span style="width:8px;height:8px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite;display:inline-block;"></span>مباشر
+        </span>
+      </div>
+      <div style="margin-top:12px;background:rgba(255,255,255,0.18);border-radius:12px;padding:10px 14px;font-size:13px;color:white;">
+        📍 الموقع الحالي: <strong>المنزل — حي النزهة، الرياض</strong>
+      </div>
+    </div>
     <div class="scroll-content">
-      <div class="fake-map"><div class="safe-zone"></div><div style="position:absolute;top:36%;left:46%;"><div class="child-pin-dot"></div></div><div style="position:absolute;top:42%;left:44%;font-size:20px;">🏠</div></div>
-      <div class="card card-body"><div style="font-weight:700;">🛡️ النطاقات الآمنة</div><div style="display:flex;align-items:center;gap:12px;padding:10px 0;"><span>🏠</span><div style="flex:1;">المنزل</div><button class="toggle on"></button></div><div style="display:flex;align-items:center;gap:12px;padding:10px 0;"><span>🏫</span><div style="flex:1;">المدرسة</div><button class="toggle on"></button></div></div>
+      <div class="card" style="margin-bottom:14px;">
+        <div class="fake-map">
+          <div class="map-grid-h" style="top:20%"></div>
+          <div class="map-grid-h" style="top:40%"></div>
+          <div class="map-grid-h" style="top:60%"></div>
+          <div class="map-grid-h" style="top:80%"></div>
+          <div class="map-grid-v" style="left:25%"></div>
+          <div class="map-grid-v" style="left:50%"></div>
+          <div class="map-grid-v" style="left:75%"></div>
+          <div class="safe-zone"></div>
+          <div style="position:absolute;top:36%;left:46%;display:flex;flex-direction:column;align-items:center;">
+            <div class="child-pin-label">فيصل 👦</div>
+            <div class="child-pin-dot"></div>
+          </div>
+          <div style="position:absolute;top:42%;left:44%;font-size:20px;">🏠</div>
+          <div style="position:absolute;bottom:10px;right:10px;background:rgba(255,255,255,0.85);border-radius:8px;padding:4px 8px;font-size:11px;color:var(--text);">حي النزهة، الرياض</div>
+        </div>
+        <div style="padding:10px 16px;display:flex;gap:16px;align-items:center;">
+          <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);">
+            <span style="width:12px;height:12px;border-radius:50%;background:var(--success);display:inline-block;"></span>النطاق الآمن
+          </span>
+          <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);">
+            <span style="width:12px;height:12px;border-radius:50%;background:var(--primary);display:inline-block;"></span>موقع فيصل
+          </span>
+        </div>
+      </div>
+
+      <div class="card card-body">
+        <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;">🛡️ النطاقات الآمنة</div>
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+          <span style="font-size:20px;">🏠</span>
+          <div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text);">المنزل</div><div style="font-size:12px;color:var(--muted);">نطاق 200م</div></div>
+          <button class="toggle on" onclick="this.classList.toggle('on');this.classList.toggle('off')"></button>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+          <span style="font-size:20px;">🏫</span>
+          <div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text);">المدرسة</div><div style="font-size:12px;color:var(--muted);">نطاق 150م</div></div>
+          <button class="toggle on" onclick="this.classList.toggle('on');this.classList.toggle('off')"></button>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;">
+          <span style="font-size:20px;">👴</span>
+          <div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text);">منزل الجد</div><div style="font-size:12px;color:var(--muted);">نطاق 100م</div></div>
+          <button class="toggle off" onclick="this.classList.toggle('on');this.classList.toggle('off')"></button>
+        </div>
+      </div>
+
+      <div class="card card-body">
+        <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;">🕐 سجل اليوم</div>
+        <div id="tracking-history"></div>
+      </div>
     </div>
   </div>
 
-  <!-- APPS SCREEN -->
+  <!-- ══════════════════════════════════════════
+       APPS MANAGEMENT
+       ══════════════════════════════════════════ -->
   <div class="screen" id="screen-apps">
-    <div class="header-grad"><button class="back-btn" onclick="goBackParent()">← رجوع</button><h2 style="color:white;">📱 إدارة التطبيقات</h2><div class="filter-tabs"><button class="filter-tab active" onclick="filterApps('all',this)">الكل</button><button class="filter-tab" onclick="filterApps('pending',this)">منتظر</button><button class="filter-tab" onclick="filterApps('allowed',this)">مسموح</button><button class="filter-tab" onclick="filterApps('blocked',this)">محظور</button></div></div>
+    <div class="header-grad">
+      <button class="back-btn" onclick="goBackParent()">← رجوع</button>
+      <h2 style="color:white;font-size:20px;font-family:var(--font-ar);margin-bottom:14px;">📱 إدارة التطبيقات</h2>
+      <div class="filter-tabs">
+        <button class="filter-tab active" onclick="filterApps('all',this)">الكل</button>
+        <button class="filter-tab" onclick="filterApps('pending',this)">
+          منتظر <span id="pending-count" style="background:var(--error);color:white;border-radius:50%;width:16px;height:16px;font-size:10px;display:inline-flex;align-items:center;justify-content:center;margin-right:4px;">2</span>
+        </button>
+        <button class="filter-tab" onclick="filterApps('allowed',this)">مسموح</button>
+        <button class="filter-tab" onclick="filterApps('blocked',this)">محظور</button>
+      </div>
+    </div>
     <div class="scroll-content" id="apps-list"></div>
   </div>
 
-  <!-- SCHEDULE SCREEN -->
+  <!-- ══════════════════════════════════════════
+       SCHEDULE
+       ══════════════════════════════════════════ -->
   <div class="screen" id="screen-schedule">
-    <div class="header-grad"><button class="back-btn" onclick="goBackParent()">← رجوع</button><h2 style="color:white;">⏰ جدول الأوقات</h2><div class="day-tabs" id="day-tabs"></div></div>
+    <div class="header-grad">
+      <button class="back-btn" onclick="goBackParent()">← رجوع</button>
+      <h2 style="color:white;font-size:20px;font-family:var(--font-ar);margin-bottom:14px;">⏰ جدول الأوقات</h2>
+      <div class="day-tabs" id="day-tabs"></div>
+    </div>
     <div class="scroll-content" id="schedule-content"></div>
   </div>
 
-  <!-- REPORT SCREEN -->
+  <!-- ══════════════════════════════════════════
+       REPORT
+       ══════════════════════════════════════════ -->
   <div class="screen" id="screen-report">
-    <div class="header-grad"><button class="back-btn" onclick="goBackParent()">← رجوع</button><h2 style="color:white;">📊 تقرير اليوم</h2></div>
+    <div class="header-grad">
+      <button class="back-btn" onclick="goBackParent()">← رجوع</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <h2 style="color:white;font-size:20px;font-family:var(--font-ar);">📊 تقرير اليوم</h2>
+        <span style="color:rgba(255,255,255,0.7);font-size:12px;">الجمعة 5 يونيو</span>
+      </div>
+    </div>
     <div class="scroll-content" id="report-content"></div>
   </div>
 
-  <!-- SETTINGS SCREEN -->
+  <!-- ══════════════════════════════════════════
+       SETTINGS
+       ══════════════════════════════════════════ -->
   <div class="screen" id="screen-settings">
-    <div class="header-grad"><button class="back-btn" onclick="goBackParent()">← رجوع</button><h2 style="color:white;">⚙️ الإعدادات</h2></div>
+    <div class="header-grad">
+      <button class="back-btn" onclick="goBackParent()">← رجوع</button>
+      <h2 style="color:white;font-size:20px;font-family:var(--font-ar);">⚙️ الإعدادات</h2>
+    </div>
     <div class="scroll-content" id="settings-content"></div>
   </div>
 
-  <!-- ====================== QURAN SCREEN (CHILD) ====================== -->
-  <div class="screen" id="screen-quran">
-    <div id="stars-container" style="position:absolute;inset:0;pointer-events:none;"></div>
-    <div class="scroll-content" style="background:transparent;padding-top:44px;">
-      <div style="text-align:center;margin-bottom:20px;">
-        <div style="font-size:26px;color:#B05A2F;font-family:var(--font-ar);font-weight:700;">فيصل 🌙</div>
-        <div style="font-size:12px;color:#9E7B6B;">الجمعة 5 يونيو 2026</div>
+  <!-- ══════════════════════════════════════════
+       QURAN (CHILD) — صفحة القرآن الكاملة
+       ══════════════════════════════════════════ -->
+  <div class="screen" id="screen-quran" style="background:#F5EDE4;">
+
+    <!-- المرحلة 1: صفحة القرآن -->
+    <div id="quran-phase-1" style="width:100%;height:100%;display:flex;flex-direction:column;background:#F5EDE4;">
+
+      <!-- Header بسيط لونين -->
+      <div style="background:#B05A2F;padding:44px 20px 14px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="color:rgba(255,255,255,0.75);font-size:12px;">السلام عليكم</div>
+          <div style="color:white;font-size:18px;font-family:var(--font-ar);font-weight:700;">فيصل 🌙</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.18);border-radius:12px;padding:6px 12px;text-align:center;">
+          <div style="color:white;font-size:11px;font-weight:700;" id="verse-counter-top">الآية 1 من 3</div>
+          <div style="color:rgba(255,255,255,0.7);font-size:10px;" id="sheikh-name-top">الشيخ السديس</div>
+        </div>
       </div>
 
-      <div class="quran-page-wrap" id="quranContainer" style="position:relative;overflow:hidden;">
-        <div class="quran-page-header"><span>📖 سورة الكهف</span><span>نصف الوجه الأول</span></div>
-        <div class="quran-page-body" id="versesContainer" style="position:relative;min-height:350px;"></div>
-        <div style="padding:8px 16px;background:#FAF0E8;">
-          <div class="progress-bar"><div class="progress-fill" id="quranOverallProgress" style="width:0%"></div></div>
-          <div style="display:flex;justify-content:space-between;margin-top:5px;">
-            <span style="font-size:11px;color:#9E7B6B;" id="progressText">0 / 6 آيات</span>
-            <span style="font-size:11px;color:#9E7B6B;" id="playStatusMsg">🔊 اضغط على الآية لسماعها</span>
+      <!-- صفحة المصحف -->
+      <div style="flex:1;overflow:hidden;position:relative;background:#FDF6E3;margin:12px;border-radius:16px;box-shadow:0 8px 32px rgba(176,90,47,0.2),inset 0 0 60px rgba(176,90,47,0.04);">
+
+        <!-- زخرفة المصحف — إطار -->
+        <div style="position:absolute;inset:8px;border:2px solid rgba(176,90,47,0.2);border-radius:10px;pointer-events:none;"></div>
+        <div style="position:absolute;inset:12px;border:1px solid rgba(176,90,47,0.1);border-radius:8px;pointer-events:none;"></div>
+
+        <!-- الزوايا الزخرفية -->
+        <div style="position:absolute;top:4px;right:4px;width:20px;height:20px;border-top:3px solid #B05A2F;border-right:3px solid #B05A2F;border-radius:0 6px 0 0;"></div>
+        <div style="position:absolute;top:4px;left:4px;width:20px;height:20px;border-top:3px solid #B05A2F;border-left:3px solid #B05A2F;border-radius:6px 0 0 0;"></div>
+        <div style="position:absolute;bottom:4px;right:4px;width:20px;height:20px;border-bottom:3px solid #B05A2F;border-right:3px solid #B05A2F;border-radius:0 0 6px 0;"></div>
+        <div style="position:absolute;bottom:4px;left:4px;width:20px;height:20px;border-bottom:3px solid #B05A2F;border-left:3px solid #B05A2F;border-radius:0 0 0 6px;"></div>
+
+        <!-- البسملة -->
+        <div style="text-align:center;padding:18px 16px 8px;font-size:18px;color:#B05A2F;font-family:var(--font-ar);border-bottom:1px solid rgba(176,90,47,0.12);">
+          بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+        </div>
+
+        <!-- الآيات — كل آية تُضاء عند القراءة -->
+        <div style="padding:16px 20px;direction:rtl;" id="verses-container">
+
+          <div class="quran-verse-row" id="verse-row-0" onclick="selectVerse(0)"
+            style="padding:10px 8px;border-radius:10px;margin-bottom:6px;cursor:pointer;transition:all 0.3s;position:relative;border:2px solid transparent;">
+            <div style="font-size:19px;color:#2C1810;font-family:var(--font-ar);line-height:2;text-align:right;">
+              ﴿ اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ ﴾
+            </div>
+            <div style="font-size:11px;color:#9E7B6B;margin-top:4px;text-align:left;">آية الكرسي — البقرة: 255</div>
+            <!-- ظل الضوء يمشي -->
+            <div class="verse-shimmer" id="shimmer-0" style="display:none;position:absolute;inset:0;border-radius:10px;background:linear-gradient(90deg,transparent 0%,rgba(176,90,47,0.12) 50%,transparent 100%);background-size:200% 100%;animation:shimmer 1.5s infinite;"></div>
+          </div>
+
+          <div class="quran-verse-row" id="verse-row-1" onclick="selectVerse(1)"
+            style="padding:10px 8px;border-radius:10px;margin-bottom:6px;cursor:pointer;transition:all 0.3s;position:relative;border:2px solid transparent;opacity:0.4;">
+            <div style="font-size:19px;color:#2C1810;font-family:var(--font-ar);line-height:2;text-align:right;">
+              ﴿ قُلْ هُوَ اللَّهُ أَحَدٌ ۝ اللَّهُ الصَّمَدُ ۝ لَمْ يَلِدْ وَلَمْ يُولَدْ ۝ وَلَمْ يَكُن لَّهُ كُفُوًا أَحَدٌ ﴾
+            </div>
+            <div style="font-size:11px;color:#9E7B6B;margin-top:4px;text-align:left;">سورة الإخلاص: 1-4</div>
+            <div class="verse-shimmer" id="shimmer-1" style="display:none;position:absolute;inset:0;border-radius:10px;background:linear-gradient(90deg,transparent 0%,rgba(176,90,47,0.12) 50%,transparent 100%);background-size:200% 100%;animation:shimmer 1.5s infinite;"></div>
+          </div>
+
+          <div class="quran-verse-row" id="verse-row-2" onclick="selectVerse(2)"
+            style="padding:10px 8px;border-radius:10px;margin-bottom:6px;cursor:pointer;transition:all 0.3s;position:relative;border:2px solid transparent;opacity:0.4;">
+            <div style="font-size:19px;color:#2C1810;font-family:var(--font-ar);line-height:2;text-align:right;">
+              ﴿ الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ ۝ الرَّحْمَٰنِ الرَّحِيمِ ۝ مَالِكِ يَوْمِ الدِّينِ ﴾
+            </div>
+            <div style="font-size:11px;color:#9E7B6B;margin-top:4px;text-align:left;">سورة الفاتحة: 1-3</div>
+            <div class="verse-shimmer" id="shimmer-2" style="display:none;position:absolute;inset:0;border-radius:10px;background:linear-gradient(90deg,transparent 0%,rgba(176,90,47,0.12) 50%,transparent 100%);background-size:200% 100%;animation:shimmer 1.5s infinite;"></div>
+          </div>
+
+        </div>
+
+        <!-- مؤشر التقدم -->
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:8px 16px;background:rgba(253,246,227,0.95);border-top:1px solid rgba(176,90,47,0.1);">
+          <div style="display:flex;gap:8px;justify-content:center;">
+            <div id="dot-v0" style="width:28px;height:6px;border-radius:3px;background:#B05A2F;transition:all 0.3s;"></div>
+            <div id="dot-v1" style="width:6px;height:6px;border-radius:3px;background:rgba(176,90,47,0.25);transition:all 0.3s;"></div>
+            <div id="dot-v2" style="width:6px;height:6px;border-radius:3px;background:rgba(176,90,47,0.25);transition:all 0.3s;"></div>
           </div>
         </div>
       </div>
 
-      <div id="hadithSectionWrapper" style="display:none;">
-        <div class="hadith-card">
-          <div style="font-size:13px;color:#4ade80;font-weight:700;margin-bottom:10px;">🕌 حديث اليوم (يجب قراءته لفتح الجهاز)</div>
-          <div class="hadith-text">« خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ »</div>
-          <div style="font-size:11px;color:rgba(74,222,128,0.5);margin-top:8px;">رواه البخاري</div>
-          <button class="play-btn" id="readHadithBtn" onclick="completeHadith()" style="background:linear-gradient(135deg,#2D8A4E,#3aaf63);color:white;margin-top:16px;">📖 قرأت الحديث</button>
+      <!-- شريط التحكم -->
+      <div style="padding:10px 16px 24px;flex-shrink:0;background:#F5EDE4;">
+        <div style="background:white;border-radius:20px;padding:14px 18px;box-shadow:0 4px 20px rgba(176,90,47,0.12);">
+          <div style="display:flex;align-items:center;gap:14px;">
+
+            <!-- زر التشغيل -->
+            <button id="play-btn" onclick="startVersePlay()"
+              style="width:52px;height:52px;border-radius:50%;border:none;background:linear-gradient(135deg,#B05A2F,#D4784A);color:white;font-size:22px;cursor:pointer;flex-shrink:0;box-shadow:0 6px 18px rgba(176,90,47,0.4);transition:all 0.2s;">
+              ▶️
+            </button>
+
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:700;color:#2C1810;" id="play-status">اضغط للاستماع للآية الأولى</div>
+              <div style="margin-top:6px;height:5px;background:#E8D5C4;border-radius:3px;overflow:hidden;">
+                <div id="quran-progress" style="height:100%;width:0%;background:linear-gradient(90deg,#B05A2F,#D4784A);border-radius:3px;transition:width 0.1s linear;"></div>
+              </div>
+            </div>
+
+            <div style="text-align:center;flex-shrink:0;">
+              <div style="font-size:18px;font-weight:700;color:#B05A2F;" id="play-pct">0%</div>
+              <div style="font-size:10px;color:#9E7B6B;">تقدم</div>
+            </div>
+          </div>
+          <div id="unlock-hint" style="text-align:center;margin-top:10px;font-size:12px;color:#9E7B6B;">
+            🔒 اسمع الآيات الثلاث للمتابعة
+          </div>
         </div>
       </div>
+    </div>
 
-      <div id="unlockDeviceSection" style="text-align:center;margin:20px 0;display:none;">
-        <button class="btn btn-success" onclick="unlockChildDevice()" style="font-size:18px;padding:16px;">🔓 فتح الجهاز الآن</button>
-        <p style="color:var(--muted);font-size:12px;margin-top:8px;">مبروك! أتممت الحفظ والحديث 🎉</p>
+    <!-- المرحلة 2: الأحاديث (مخفية في البداية) -->
+    <div id="quran-phase-2" style="display:none;width:100%;height:100%;flex-direction:column;background:linear-gradient(160deg,#1e3a2a,#243f30);">
+      <div style="padding:48px 20px 18px;flex-shrink:0;">
+        <div style="color:#4ade80;font-size:13px;margin-bottom:4px;">ما شاء الله! أكملت تلاوة اليوم 🌟</div>
+        <div style="color:white;font-size:20px;font-family:var(--font-ar);font-weight:700;">الآن — الأحاديث النبوية</div>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;padding:0 16px;">
+
+        <!-- حديث 1 -->
+        <div class="hadith-item" id="hadith-item-0"
+          style="background:rgba(255,255,255,0.07);border:1px solid rgba(74,222,128,0.2);border-radius:18px;padding:18px;margin-bottom:12px;opacity:1;cursor:pointer;"
+          onclick="listenHadith(0)">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <div style="width:32px;height:32px;border-radius:50%;background:rgba(74,222,128,0.15);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🕌</div>
+            <div style="color:#4ade80;font-size:12px;font-weight:700;">الحديث الأول</div>
+            <div id="hadith-done-0" style="margin-right:auto;display:none;font-size:18px;">✅</div>
+          </div>
+          <div style="font-size:15px;color:#d4f5e2;font-family:var(--font-ar);line-height:1.9;text-align:right;">
+            « خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ »
+          </div>
+          <div style="font-size:11px;color:rgba(74,222,128,0.5);margin-top:8px;">رواه البخاري</div>
+          <!-- شريط الاستماع -->
+          <div id="hadith-prog-0" style="display:none;margin-top:10px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;">
+            <div id="hadith-fill-0" style="height:100%;width:0%;background:#4ade80;border-radius:2px;transition:width 0.1s;"></div>
+          </div>
+        </div>
+
+        <!-- حديث 2 -->
+        <div class="hadith-item" id="hadith-item-1"
+          style="background:rgba(255,255,255,0.04);border:1px solid rgba(74,222,128,0.1);border-radius:18px;padding:18px;margin-bottom:12px;opacity:0.4;pointer-events:none;"
+          onclick="listenHadith(1)">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <div style="width:32px;height:32px;border-radius:50%;background:rgba(74,222,128,0.1);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🕌</div>
+            <div style="color:#4ade80;font-size:12px;font-weight:700;">الحديث الثاني</div>
+            <div id="hadith-done-1" style="margin-right:auto;display:none;font-size:18px;">✅</div>
+          </div>
+          <div style="font-size:15px;color:#d4f5e2;font-family:var(--font-ar);line-height:1.9;text-align:right;">
+            « الْمُؤْمِنُ الْقَوِيُّ خَيْرٌ وَأَحَبُّ إِلَى اللَّهِ مِنَ الْمُؤْمِنِ الضَّعِيفِ »
+          </div>
+          <div style="font-size:11px;color:rgba(74,222,128,0.5);margin-top:8px;">رواه مسلم</div>
+          <div id="hadith-prog-1" style="display:none;margin-top:10px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;">
+            <div id="hadith-fill-1" style="height:100%;width:0%;background:#4ade80;border-radius:2px;transition:width 0.1s;"></div>
+          </div>
+        </div>
+
+        <!-- حديث 3 -->
+        <div class="hadith-item" id="hadith-item-2"
+          style="background:rgba(255,255,255,0.04);border:1px solid rgba(74,222,128,0.1);border-radius:18px;padding:18px;margin-bottom:12px;opacity:0.4;pointer-events:none;"
+          onclick="listenHadith(2)">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <div style="width:32px;height:32px;border-radius:50%;background:rgba(74,222,128,0.1);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🕌</div>
+            <div style="color:#4ade80;font-size:12px;font-weight:700;">الحديث الثالث</div>
+            <div id="hadith-done-2" style="margin-right:auto;display:none;font-size:18px;">✅</div>
+          </div>
+          <div style="font-size:15px;color:#d4f5e2;font-family:var(--font-ar);line-height:1.9;text-align:right;">
+            « مَنْ صَامَ رَمَضَانَ إِيمَانًا وَاحْتِسَابًا غُفِرَ لَهُ مَا تَقَدَّمَ مِنْ ذَنْبِهِ »
+          </div>
+          <div style="font-size:11px;color:rgba(74,222,128,0.5);margin-top:8px;">رواه البخاري ومسلم</div>
+          <div id="hadith-prog-2" style="display:none;margin-top:10px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;">
+            <div id="hadith-fill-2" style="height:100%;width:0%;background:#4ade80;border-radius:2px;transition:width 0.1s;"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- زر الفتح — مخفي حتى تكتمل الأحاديث -->
+      <div style="padding:12px 16px 32px;flex-shrink:0;" id="unlock-section">
+        <div style="text-align:center;color:rgba(74,222,128,0.6);font-size:13px;padding:12px;" id="unlock-hint-2">
+          🔒 استمع للأحاديث الثلاثة لفتح الجهاز
+        </div>
       </div>
     </div>
+
   </div>
 
-  <!-- CHILD HOME SCREEN -->
+  <!-- ══════════════════════════════════════════
+       CHILD HOME
+       ══════════════════════════════════════════ -->
   <div class="screen" id="screen-child-home">
     <div class="header-grad dark">
-      <div style="display:flex;justify-content:space-between;"><div><h2 style="color:white;">فيصل 🌟</h2></div><div class="streak-box"><div style="font-size:20px;">🔥</div><div style="color:white;">7 أيام</div></div></div>
-      <div class="time-pill"><span>⏱</span><div><div style="color:white;">1 ساعة و 30 دقيقة متبقية</div></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <p style="color:rgba(122,184,245,0.8);font-size:13px;margin-bottom:2px;">السلام عليكم</p>
+          <h2 style="color:white;font-size:22px;font-family:var(--font-ar);">فيصل 🌟</h2>
+        </div>
+        <div class="streak-box">
+          <div style="font-size:20px;">🔥</div>
+          <div style="color:white;font-size:11px;margin-top:2px;">7 أيام</div>
+        </div>
+      </div>
+      <div class="time-pill">
+        <span style="font-size:20px;">⏱</span>
+        <div>
+          <div style="color:white;font-weight:700;">1 ساعة و 30 دقيقة متبقية</div>
+          <div style="color:rgba(122,184,245,0.8);font-size:12px;">ينتهي وقتك الساعة 9:00 مساءً</div>
+        </div>
+      </div>
     </div>
     <div class="scroll-content" id="child-home-content"></div>
-    <div style="background:var(--card);padding:8px 0;display:flex;"><button onclick="goDemo()" style="flex:1;border:none;background:transparent;cursor:pointer;"><div style="font-size:22px;">🔄</div><div style="font-size:10px;">رجوع</div></button></div>
+
+    <div style="background:var(--card);border-top:1px solid var(--border);padding:8px 0 max(16px,env(safe-area-inset-bottom));display:flex;flex-shrink:0;">
+      <button onclick="goDemo()" style="flex:1;border:none;background:transparent;cursor:pointer;padding:8px 0;">
+        <div style="font-size:22px;">🔄</div>
+        <div style="font-size:10px;color:var(--muted);font-family:var(--font-ui);">رجوع</div>
+      </button>
+    </div>
   </div>
 
+</div><!-- end app-shell -->
+
+<!-- Install Banner -->
+<div id="install-banner">
+  <div style="flex:1;">
+    <div style="font-weight:700;font-size:14px;font-family:var(--font-ui);">📲 أضف نفاضل للشاشة</div>
+    <div style="font-size:12px;opacity:0.85;margin-top:2px;font-family:var(--font-ui);">للوصول السريع بدون متصفح</div>
+  </div>
+  <button onclick="installApp()" style="background:white;color:var(--primary);border:none;border-radius:12px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;font-family:var(--font-ui);">تثبيت</button>
+  <button onclick="document.getElementById('install-banner').classList.remove('show')" style="background:rgba(255,255,255,0.25);border:none;border-radius:50%;width:28px;height:28px;color:white;cursor:pointer;font-size:14px;">✕</button>
 </div>
 
 <script>
-// ====================== قائمة الآيات ======================
-const versesList = [
-  { text: "﴿ الْحَمْدُ لِلَّهِ الَّذِي أَنْزَلَ عَلَى عَبْدِهِ الْكِتَابَ وَلَمْ يَجْعَلْ لَهُ عِوَجًا ﴾", reference: "الكهف: 1" },
-  { text: "﴿ قَيِّمًا لِيُنْذِرَ بَأْسًا شَدِيدًا مِنْ لَدُنْهُ وَيُبَشِّرَ الْمُؤْمِنِينَ الَّذِينَ يَعْمَلُونَ الصَّالِحَاتِ ﴾", reference: "الكهف: 2" },
-  { text: "﴿ مَاكِثِينَ فِيهِ أَبَدًا ﴾", reference: "الكهف: 3" },
-  { text: "﴿ وَيُنْذِرَ الَّذِينَ قَالُوا اتَّخَذَ اللَّهُ وَلَدًا ﴾", reference: "الكهف: 4" },
-  { text: "﴿ مَا لَهُمْ بِهِ مِنْ عِلْمٍ وَلَا لِآبَائِهِمْ ۚ كَبُرَتْ كَلِمَةً تَخْرُجُ مِنْ أَفْوَاهِهِمْ ۚ إِنْ يَقُولُونَ إِلَّا كَذِبًا ﴾", reference: "الكهف: 5" },
-  { text: "﴿ فَلَعَلَّكَ بَاخِعٌ نَفْسَكَ عَلَى آثَارِهِمْ إِنْ لَمْ يُؤْمِنُوا بِهَذَا الْحَدِيثِ أَسَفًا ﴾", reference: "الكهف: 6" }
-];
-
-let completedVerses = new Array(versesList.length).fill(false);
-let currentVerseIndex = 0;
-let isHadithCompleted = false;
-let audioInterval = null;
+// ============================================================
+// APP STATE
+// ============================================================
+let currentScreen = 'screen-splash';
 let deviceLocked = false;
 let lockTimer = null;
 let lockMinutes = 0;
+let playInterval = null;
+let playProgress = 0;
 let currentFilter = 'all';
 let currentDay = 0;
+let deferredPrompt = null;
 
 const apps = [
-  { id:1, name:'TikTok', icon:'🎵', cat:'ترفيه', status:'pending', size:'120MB', risk:'high' },
-  { id:2, name:'YouTube Kids', icon:'▶️', cat:'تعليم', status:'allowed', size:'85MB', risk:'low' },
-  { id:3, name:'Minecraft', icon:'🎮', cat:'ألعاب', status:'allowed', size:'420MB', risk:'medium' },
-  { id:4, name:'WhatsApp', icon:'💬', cat:'تواصل', status:'pending', size:'45MB', risk:'medium' },
-  { id:5, name:'قرآن كريم', icon:'📖', cat:'ديني', status:'allowed', size:'30MB', risk:'low' },
-  { id:6, name:'Snapchat', icon:'👻', cat:'تواصل', status:'blocked', size:'95MB', risk:'high' },
+  { id:1, name:'TikTok',       icon:'🎵', cat:'ترفيه',  status:'pending', size:'120MB', risk:'high'   },
+  { id:2, name:'YouTube Kids', icon:'▶️', cat:'تعليم',  status:'allowed', size:'85MB',  risk:'low'    },
+  { id:3, name:'Minecraft',    icon:'🎮', cat:'ألعاب',  status:'allowed', size:'420MB', risk:'medium' },
+  { id:4, name:'WhatsApp',     icon:'💬', cat:'تواصل',  status:'pending', size:'45MB',  risk:'medium' },
+  { id:5, name:'قرآن كريم',   icon:'📖', cat:'ديني',   status:'allowed', size:'30MB',  risk:'low'    },
+  { id:6, name:'Snapchat',     icon:'👻', cat:'تواصل',  status:'blocked', size:'95MB',  risk:'high'   },
 ];
 
 const days = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
-const schedule = { 0: [{from:'07:00',to:'09:00',label:'صباح'},{from:'13:00',to:'15:00',label:'بعد المدرسة'}], 5: [{from:'09:00',to:'22:00',label:'عطلة الجمعة'}], 6: [{from:'09:00',to:'22:00',label:'عطلة السبت'}] };
 
-// ====================== دوال القرآن والظل ======================
-function renderQuranWithShadow() {
-  const container = document.getElementById('versesContainer');
-  if (!container) return;
-  
-  let html = `<div id="movingShadow" class="reading-shadow" style="position:absolute;top:0;left:-100%;height:0;pointer-events:none;z-index:10;border-radius:10px;"></div>`;
-  html += `<div style="position:relative;z-index:5;width:100%;">`;
-  
-  versesList.forEach((verse, idx) => {
-    let statusClass = '';
-    if (completedVerses[idx]) statusClass = 'done';
-    if (currentVerseIndex === idx) statusClass += ' current-verse';
-    html += `
-      <div class="verse-line ${statusClass}" data-verse-idx="${idx}" onclick="playAndCompleteVerse(${idx})">
-        <div style="font-size:22px;">${verse.text}</div>
-        <div style="font-size:12px;color:#B05A2F;margin-top:4px;">${verse.reference}</div>
-      </div>
-    `;
-  });
-  html += `</div>`;
-  container.innerHTML = html;
-  
-  const completedCount = completedVerses.filter(v => v === true).length;
-  const percent = (completedCount / versesList.length) * 100;
-  const progressFill = document.getElementById('quranOverallProgress');
-  const progressTextSpan = document.getElementById('progressText');
-  if (progressFill) progressFill.style.width = `${percent}%`;
-  if (progressTextSpan) progressTextSpan.innerText = `${completedCount} / ${versesList.length} آيات`;
-  
-  const allVersesDone = completedCount === versesList.length;
-  const hadithWrapper = document.getElementById('hadithSectionWrapper');
-  if (allVersesDone && hadithWrapper) hadithWrapper.style.display = 'block';
-  else if (hadithWrapper) hadithWrapper.style.display = 'none';
-  
-  updateUnlockButton();
-  setTimeout(() => moveShadowToCurrentVerse(), 100);
-}
+const schedule = {
+  0: [{from:'07:00',to:'09:00',label:'صباح'},{from:'13:00',to:'15:00',label:'بعد المدرسة'},{from:'20:00',to:'21:00',label:'مساء'}],
+  5: [{from:'09:00',to:'22:00',label:'عطلة الجمعة'}],
+  6: [{from:'09:00',to:'22:00',label:'عطلة السبت'}],
+};
 
-function moveShadowToCurrentVerse() {
-  const shadow = document.getElementById('movingShadow');
-  if (!shadow) return;
-  const activeVerseElem = document.querySelector(`.verse-line[data-verse-idx="${currentVerseIndex}"]`);
-  if (activeVerseElem) {
-    const rect = activeVerseElem.getBoundingClientRect();
-    const containerRect = document.getElementById('versesContainer').getBoundingClientRect();
-    const relativeTop = rect.top - containerRect.top;
-    shadow.style.top = `${relativeTop}px`;
-    shadow.style.left = '0%';
-    shadow.style.height = `${rect.height}px`;
-    shadow.style.animation = 'none';
-    shadow.offsetHeight;
-    shadow.style.animation = 'shadowMove 2s infinite linear';
-  }
-}
+const trackHistory = [
+  {time:'08:00',place:'المنزل 🏠',    alert:false},
+  {time:'08:30',place:'المدرسة 🏫',   alert:false},
+  {time:'12:45',place:'الطريق 🚶',    alert:false},
+  {time:'15:30',place:'خارج النطاق ⚠️',alert:true},
+  {time:'16:00',place:'المنزل 🏠',    alert:false},
+];
 
-function playAndCompleteVerse(index) {
-  if (completedVerses[index]) {
-    if (currentVerseIndex !== index) {
-      currentVerseIndex = index;
-      renderQuranWithShadow();
-    }
-    simulateAudioPlayback(index);
-    return;
-  }
-  currentVerseIndex = index;
-  renderQuranWithShadow();
-  simulateAudioPlayback(index);
-}
-
-function simulateAudioPlayback(index) {
-  if (audioInterval) clearInterval(audioInterval);
-  const msgSpan = document.getElementById('playStatusMsg');
-  if (msgSpan) msgSpan.innerHTML = "🎧 جاري التلاوة... ركز مع الآية";
-  
-  let progress = 0;
-  audioInterval = setInterval(() => {
-    progress += 10;
-    if (progress >= 100) {
-      clearInterval(audioInterval);
-      if (!completedVerses[index]) {
-        completedVerses[index] = true;
-        let nextIndex = index + 1;
-        if (nextIndex < versesList.length && !completedVerses[nextIndex]) currentVerseIndex = nextIndex;
-        else {
-          let firstIncomplete = completedVerses.findIndex(v => v === false);
-          if (firstIncomplete !== -1) currentVerseIndex = firstIncomplete;
-        }
-        renderQuranWithShadow();
-        if (msgSpan) msgSpan.innerHTML = "✅ اكتملت الآية! اضغط على الآية التالية";
-      }
-    }
-  }, 2000);
-}
-
-function completeHadith() {
-  if (completedVerses.every(v => v === true)) {
-    isHadithCompleted = true;
-    alert("🌙 أحسنت! لقد أتممت حفظ الآيات وقرأت الحديث. يمكنك الآن فتح الجهاز.");
-    updateUnlockButton();
-    const msgDiv = document.getElementById('playStatusMsg');
-    if (msgDiv) msgDiv.innerHTML = "🌟 أكملت المهمة بنجاح! اضغط على فتح الجهاز.";
-  } else {
-    alert("⚠️ يجب إتمام جميع الآيات أولاً ثم قراءة الحديث.");
-  }
-}
-
-function updateUnlockButton() {
-  const unlockDiv = document.getElementById('unlockDeviceSection');
-  const allVersesDone = completedVerses.every(v => v === true);
-  if (allVersesDone && isHadithCompleted && unlockDiv) unlockDiv.style.display = 'block';
-  else if (unlockDiv) unlockDiv.style.display = 'none';
-}
-
-function unlockChildDevice() {
-  if (completedVerses.every(v=>v===true) && isHadithCompleted) {
-    alert("🔓 تم فتح الجهاز! سيتم نقلك إلى وضع الطفل الآن.");
-    renderChildHome();
-    showScreen('screen-child-home');
-  } else {
-    alert("يجب إتمام الآيات والحديث أولاً.");
-  }
-}
-
-// ====================== دوال عامة ======================
+// ============================================================
+// NAVIGATION
+// ============================================================
 function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+  const prev = document.querySelector('.screen.active');
+  if (prev) { prev.classList.add('exit'); setTimeout(()=>{ prev.classList.remove('active','exit'); },350); }
+  const next = document.getElementById(id);
+  if (next) { setTimeout(()=>{ next.classList.add('active'); },50); }
+  currentScreen = id;
 }
 
 function navTo(id) { showScreen(id); }
-function goBackParent() { showScreen('screen-parent'); }
-function goParent() { renderApps(); renderSchedule(); renderReport(); renderSettings(); renderTrackHistory(); renderChildHome(); showScreen('screen-parent'); }
-function goChild() { 
-  completedVerses.fill(false);
-  currentVerseIndex = 0;
-  isHadithCompleted = false;
-  if (audioInterval) clearInterval(audioInterval);
+
+function goBackParent() {
+  showScreen('screen-parent');
+  updateNavTabs('home');
+}
+
+function goParent() {
+  renderApps(); renderSchedule(); renderReport(); renderSettings(); renderTrackHistory(); renderChildHome();
+  showScreen('screen-parent');
+}
+
+function goChild() {
   generateStars();
-  renderQuranWithShadow();
   showScreen('screen-quran');
 }
-function goDemo() { showScreen('screen-demo'); }
-function switchTab(tab) { const map = {home:'screen-parent',tracking:'screen-tracking',apps:'screen-apps',schedule:'screen-schedule'}; showScreen(map[tab]); }
 
-function toggleLock() {
-  deviceLocked = !deviceLocked;
-  const btn = document.getElementById('lock-btn');
-  const label = document.getElementById('lock-label');
-  const sub = document.getElementById('lock-sub');
-  const badge = document.getElementById('lock-badge');
-  const footer = document.getElementById('lock-footer');
-  const dot = document.getElementById('status-dot');
-  
-  if (deviceLocked) {
-    btn.style.background = 'linear-gradient(135deg,#C0392B,#e74c3c)';
-    btn.textContent = '🔒';
-    label.textContent = 'الجهاز مقفل الآن';
-    sub.textContent = 'اضغط لفتح الجهاز';
-    badge.textContent = 'مقفل';
-    footer.style.display = 'block';
-    dot.style.background = 'var(--error)';
-    lockTimer = setInterval(() => { lockMinutes++; if(footer) footer.textContent = `⏱ مقفل منذ: ${lockMinutes} دقيقة`; }, 60000);
-  } else {
-    clearInterval(lockTimer);
-    btn.style.background = 'linear-gradient(135deg,#2D8A4E,#3aaf63)';
-    btn.textContent = '🔓';
-    label.textContent = 'الجهاز مفتوح الآن';
-    sub.textContent = 'اضغط لإقفال الجهاز فوراً';
-    badge.textContent = 'نشط';
-    footer.style.display = 'none';
-    dot.style.background = '#4ade80';
+function goDemo() { showScreen('screen-demo'); }
+
+function switchTab(tab) {
+  const map = {home:'screen-parent',tracking:'screen-tracking',apps:'screen-apps',schedule:'screen-schedule'};
+  showScreen(map[tab]);
+  updateNavTabs(tab);
+}
+
+function updateNavTabs(active) {
+  document.querySelectorAll('.nav-tab').forEach(t => {
+    t.classList.remove('active');
+    const dot = t.querySelector('.nav-dot');
+    if (dot) dot.remove();
+  });
+  const el = document.getElementById('nav-'+active);
+  if (el) {
+    el.classList.add('active');
+    const dot = document.createElement('div');
+    dot.className = 'nav-dot';
+    el.appendChild(dot);
   }
 }
 
+// ============================================================
+// LOCK TOGGLE
+// ============================================================
+function toggleLock() {
+  deviceLocked = !deviceLocked;
+  const btn   = document.getElementById('lock-btn');
+  const label = document.getElementById('lock-label');
+  const sub   = document.getElementById('lock-sub');
+  const badge = document.getElementById('lock-badge');
+  const footer= document.getElementById('lock-footer');
+  const dot   = document.getElementById('status-dot');
+  const stxt  = document.getElementById('status-text');
+
+  if (deviceLocked) {
+    btn.style.background   = 'linear-gradient(135deg,#C0392B,#e74c3c)';
+    btn.style.boxShadow    = '0 8px 24px rgba(192,57,43,0.45)';
+    btn.textContent        = '🔒';
+    label.textContent      = 'الجهاز مقفل الآن';
+    sub.textContent        = 'اضغط لفتح الجهاز';
+    badge.style.background = 'rgba(192,57,43,0.12)';
+    badge.style.color      = 'var(--error)';
+    badge.textContent      = 'مقفل';
+    footer.style.display   = 'block';
+    dot.style.background   = 'var(--error)';
+    stxt.textContent       = 'فيصل — 🔒 الجهاز مقفل';
+    lockMinutes = 0;
+    lockTimer = setInterval(() => {
+      lockMinutes++;
+      footer.textContent = `⏱ مقفل منذ: ${lockMinutes} دقيقة`;
+    }, 60000);
+  } else {
+    clearInterval(lockTimer);
+    btn.style.background   = 'linear-gradient(135deg,#2D8A4E,#3aaf63)';
+    btn.style.boxShadow    = '0 8px 24px rgba(45,138,78,0.45)';
+    btn.textContent        = '🔓';
+    label.textContent      = 'الجهاز مفتوح الآن';
+    sub.textContent        = 'اضغط لإقفال الجهاز فوراً';
+    badge.style.background = 'rgba(45,138,78,0.12)';
+    badge.style.color      = 'var(--success)';
+    badge.textContent      = 'نشط';
+    footer.style.display   = 'none';
+    dot.style.background   = '#4ade80';
+    stxt.textContent       = 'فيصل — 📱 الجهاز نشط';
+  }
+}
+
+// ============================================================
+// APPS
+// ============================================================
 function renderApps() {
   const list = document.getElementById('apps-list');
   const filtered = currentFilter === 'all' ? apps : apps.filter(a=>a.status===currentFilter);
-  const riskColor = {high:'var(--error)',medium:'var(--warning)',low:'var(--success)'};
-  const statColor = {pending:'var(--warning)',allowed:'var(--success)',blocked:'var(--error)'};
-  const statLabel = {pending:'بانتظار الموافقة',allowed:'مسموح',blocked:'محظور'};
-  list.innerHTML = filtered.map(app => `
-    <div class="card">
-      <div style="display:flex;align-items:center;gap:12px;padding:14px;">
-        <div style="width:50px;height:50px;border-radius:14px;background:rgba(176,90,47,0.08);display:flex;align-items:center;justify-content:center;font-size:26px;">${app.icon}</div>
-        <div style="flex:1;"><div style="font-weight:700;">${app.name}</div><div style="font-size:12px;color:var(--muted);">${app.cat}</div></div>
-        <span style="background:${statColor[app.status]}18;color:${statColor[app.status]};padding:3px 10px;border-radius:20px;font-size:11px;">${statLabel[app.status]}</span>
-      </div>
-      ${app.status==='pending' ? `<div style="display:flex;gap:8px;padding:0 14px 14px;"><button onclick="setAppStatus(${app.id},'allowed')" style="flex:1;padding:10px;background:var(--success-bg);color:var(--success);border:none;border-radius:12px;">✅ سماح</button><button onclick="setAppStatus(${app.id},'blocked')" style="flex:1;padding:10px;background:var(--error-bg);color:var(--error);border:none;border-radius:12px;">🗑️ حذف</button></div>` : ''}
-    </div>`).join('');
-}
-function setAppStatus(id, status) { const app = apps.find(a=>a.id===id); if(app){ app.status=status; renderApps(); } }
-function filterApps(f, btn) { currentFilter=f; document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active')); btn.classList.add('active'); renderApps(); }
+  const riskColor  = {high:'var(--error)',medium:'var(--warning)',low:'var(--success)'};
+  const riskLabel  = {high:'خطر عالي',medium:'متوسط',low:'آمن'};
+  const statColor  = {pending:'var(--warning)',allowed:'var(--success)',blocked:'var(--error)'};
+  const statLabel  = {pending:'بانتظار الموافقة',allowed:'مسموح',blocked:'محظور'};
 
+  list.innerHTML = filtered.map(app => `
+    <div class="card" id="app-card-${app.id}">
+      <div class="app-row">
+        <div class="app-icon-box" style="background:rgba(176,90,47,0.08);border:1px solid rgba(176,90,47,0.15);">${app.icon}</div>
+        <div style="flex:1;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+            <span style="font-size:15px;font-weight:700;color:var(--text);">${app.name}</span>
+            <span class="badge" style="background:rgba(0,0,0,0.05);color:${riskColor[app.risk]};">${riskLabel[app.risk]}</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);">${app.cat} · ${app.size}</div>
+        </div>
+        <span class="badge" style="background:${statColor[app.status]}18;color:${statColor[app.status]};">${statLabel[app.status]}</span>
+      </div>
+      ${app.status==='pending' ? `
+        <div class="app-actions">
+          <button class="app-action-btn" style="background:var(--success-bg);color:var(--success);" onclick="setAppStatus(${app.id},'allowed')">✅ سماح</button>
+          <button class="app-action-btn" style="background:var(--error-bg);color:var(--error);"   onclick="setAppStatus(${app.id},'blocked')">🗑️ حذف</button>
+        </div>` : `
+        <div class="app-actions">
+          ${app.status==='allowed'
+            ? `<button class="app-action-btn" style="background:var(--error-bg);color:var(--error);" onclick="setAppStatus(${app.id},'blocked')">حظر</button>`
+            : `<button class="app-action-btn" style="background:var(--success-bg);color:var(--success);" onclick="setAppStatus(${app.id},'allowed')">سماح</button>`
+          }
+        </div>`}
+    </div>`).join('');
+
+  const pc = apps.filter(a=>a.status==='pending').length;
+  const pcEl = document.getElementById('pending-count');
+  if (pcEl) { pcEl.textContent = pc; pcEl.style.display = pc ? 'inline-flex' : 'none'; }
+}
+
+function setAppStatus(id, status) {
+  const app = apps.find(a=>a.id===id);
+  if (app) { app.status = status; renderApps(); }
+}
+
+function filterApps(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  renderApps();
+}
+
+// ============================================================
+// SCHEDULE
+// ============================================================
 function renderSchedule() {
   const tabs = document.getElementById('day-tabs');
-  tabs.innerHTML = days.map((d,i)=>`<button class="day-tab ${i===currentDay?'active':''}" onclick="selectDay(${i},this)">${d}</button>`).join('');
+  tabs.innerHTML = days.map((d,i)=>`
+    <button class="day-tab ${i===currentDay?'active':''}" onclick="selectDay(${i},this)">${d}</button>`).join('');
   renderDaySlots();
 }
-function selectDay(i, btn) { currentDay=i; document.querySelectorAll('.day-tab').forEach(t=>t.classList.remove('active')); btn.classList.add('active'); renderDaySlots(); }
+
+function selectDay(i, btn) {
+  currentDay = i;
+  document.querySelectorAll('.day-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  renderDaySlots();
+}
+
 function renderDaySlots() {
   const content = document.getElementById('schedule-content');
   const slots = schedule[currentDay] || [];
-  content.innerHTML = `<div class="card card-body"><div style="font-weight:700;">⏰ أوقات اليوم</div>${slots.map(s=>`<div style="display:flex;justify-content:space-between;padding:10px 0;"><span>${s.label}</span><span>${s.from} - ${s.to}</span></div>`).join('')}</div>`;
+  const totalMins = slots.reduce((acc,s)=>{
+    const [fh,fm]=s.from.split(':').map(Number);
+    const [th,tm]=s.to.split(':').map(Number);
+    return acc+(th*60+tm-fh*60-fm);
+  },0);
+
+  content.innerHTML = `
+    <div class="card card-body">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:12px;color:var(--muted);">مجموع الوقت المسموح</div>
+          <div style="font-size:26px;font-weight:700;color:var(--primary);">${Math.floor(totalMins/60)}س ${totalMins%60}د</div>
+        </div>
+        <div style="width:56px;height:56px;border-radius:50%;background:var(--primary-bg);border:4px solid var(--primary);display:flex;align-items:center;justify-content:center;font-size:22px;">📱</div>
+      </div>
+      <div class="progress-bar" style="margin-top:12px;">
+        <div class="progress-fill" style="width:${Math.min((totalMins/720)*100,100)}%;"></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">من أصل 12 ساعة يومية</div>
+    </div>
+    ${slots.length ? slots.map(s=>`
+      <div class="card card-body">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:44px;height:44px;border-radius:14px;background:var(--primary-bg);display:flex;align-items:center;justify-content:center;font-size:20px;">🕐</div>
+          <div style="flex:1;">
+            <div style="font-size:15px;font-weight:700;color:var(--text);">${s.label}</div>
+            <div style="font-size:15px;color:var(--primary);font-family:monospace;font-weight:700;">${s.from} — ${s.to}</div>
+          </div>
+          <span class="badge" style="background:var(--success-bg);color:var(--success);">مسموح</span>
+        </div>
+      </div>`).join('') : `
+      <div style="text-align:center;padding:40px 20px;">
+        <div style="font-size:50px;margin-bottom:12px;">🔒</div>
+        <div style="font-size:16px;font-weight:700;color:var(--text);">لا وقت مسموح هذا اليوم</div>
+        <p style="color:var(--muted);font-size:14px;">الجهاز مقفل طوال اليوم</p>
+      </div>`}
+    <button class="btn btn-outline" style="margin-top:8px;">+ إضافة وقت مسموح</button>
+    <div class="card" style="margin-top:14px;">
+      <div class="card-body">
+        <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;">🕌 إقفال أوقات الصلاة</div>
+        ${['الفجر','الظهر','العصر','المغرب','العشاء'].map((p,i)=>`
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;${i<4?'border-bottom:1px solid var(--border);':''}">
+            <span style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text);">🕌 ${p}</span>
+            <button class="toggle ${i<3?'on':'off'}" onclick="this.classList.toggle('on');this.classList.toggle('off')"></button>
+          </div>`).join('')}
+      </div>
+    </div>`;
 }
 
+// ============================================================
+// REPORT
+// ============================================================
 function renderReport() {
   const content = document.getElementById('report-content');
-  content.innerHTML = `<div class="card card-body"><div style="font-weight:700;">📊 تقرير اليوم</div><div>وقت الشاشة: 2س 14د</div><div>التطبيقات الأكثر استخداماً: YouTube Kids, Minecraft</div></div>`;
+  const usage = [0,20,45,30,80,60,40,90,10];
+  const hours = ['6','8','10','12','14','16','18','20','22'];
+  const maxU = Math.max(...usage);
+
+  content.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;">
+      ${[{icon:'⏱',label:'وقت الشاشة',value:'2س 14د',color:'var(--warning)'},
+         {icon:'🔓',label:'مرات الفتح',value:'23',color:'var(--primary)'},
+         {icon:'📖',label:'آيات قرأها',value:'3',color:'var(--success)'}].map(s=>`
+        <div class="card card-body" style="text-align:center;">
+          <div style="font-size:22px;">${s.icon}</div>
+          <div style="font-size:16px;font-weight:700;color:${s.color};">${s.value}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;">${s.label}</div>
+        </div>`).join('')}
+    </div>
+
+    <div class="card card-body" style="margin-bottom:14px;">
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;">📈 استخدام الجهاز بالساعة</div>
+      <div class="chart-bars">
+        ${usage.map((u,i)=>`
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <div class="chart-bar ${u>70?'danger':''}" style="width:100%;height:${(u/maxU)*80}px;min-height:${u>0?4:0}px;"></div>
+            <span style="font-size:9px;color:var(--muted);font-family:monospace;">${hours[i]}</span>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="card card-body" style="margin-bottom:14px;">
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;">📱 أكثر التطبيقات استخداماً</div>
+      ${[{icon:'▶️',name:'YouTube Kids',time:'45د',pct:60},
+         {icon:'🎮',name:'Minecraft',   time:'32د',pct:45},
+         {icon:'📖',name:'قرآن كريم',   time:'15د',pct:20}].map((a,i)=>`
+        <div style="margin-bottom:${i<2?12:0}px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+            <span style="font-size:18px;">${a.icon}</span>
+            <span style="flex:1;font-size:14px;color:var(--text);">${a.name}</span>
+            <span style="font-size:13px;color:var(--muted);">${a.time}</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${a.pct}%;"></div></div>
+        </div>`).join('')}
+    </div>
+
+    <div class="card card-body" style="background:linear-gradient(135deg,var(--success-bg),#f0fbf4);border:1px solid rgba(45,138,78,0.2);">
+      <div style="font-size:14px;font-weight:700;color:var(--success);margin-bottom:10px;">📖 سجل القرآن اليوم</div>
+      ${[{time:'07:15',verse:'آية الكرسي',sheikh:'الشيخ المنشاوي'},
+         {time:'13:02',verse:'سورة الفاتحة',sheikh:'الشيخ السديس'},
+         {time:'15:30',verse:'سورة الإخلاص',sheikh:'الشيخ العفاسي'}].map((r,i)=>`
+        <div style="display:flex;gap:10px;align-items:center;padding:8px 0;${i<2?'border-bottom:1px solid rgba(45,138,78,0.15);':''}">
+          <span style="font-size:16px;">✅</span>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:700;color:var(--text);">${r.verse}</div>
+            <div style="font-size:11px;color:var(--muted);">${r.sheikh} · ${r.time}</div>
+          </div>
+        </div>`).join('')}
+    </div>`;
 }
 
+// ============================================================
+// SETTINGS
+// ============================================================
 function renderSettings() {
   const content = document.getElementById('settings-content');
-  content.innerHTML = `<div class="card card-body"><div style="font-weight:700;">⚙️ الإعدادات</div><div class="settings-row"><div class="settings-icon">🔔</div><div>الإشعارات</div><button class="toggle on"></button></div><div class="settings-row"><div class="settings-icon">📍</div><div>مشاركة الموقع</div><button class="toggle on"></button></div></div>`;
+  const sections = [
+    { title:'الحساب', items:[
+      {icon:'👤',label:'بيانات الحساب',sub:'أبو فيصل',toggle:false},
+      {icon:'🔐',label:'كلمة المرور',sub:'تغيير كلمة المرور',toggle:false},
+      {icon:'📱',label:'الأجهزة المرتبطة',sub:'جهاز فيصل',toggle:false},
+    ]},
+    { title:'الإشعارات', items:[
+      {icon:'🔔',label:'تطبيقات جديدة',toggle:true,on:true},
+      {icon:'📍',label:'إشعارات الموقع',toggle:true,on:true},
+      {icon:'⏰',label:'انتهاء وقت الجهاز',toggle:true,on:false},
+    ]},
+    { title:'الخصوصية', items:[
+      {icon:'🛡️',label:'سياسة الخصوصية',sub:'مطابق لأنظمة هيئة الاتصالات',toggle:false},
+      {icon:'🔒',label:'تشفير البيانات',sub:'AES-256 مُفعّل',toggle:false},
+      {icon:'📋',label:'شروط الاستخدام',sub:'آخر تحديث: مارس 2025',toggle:false},
+    ]},
+  ];
+
+  content.innerHTML = sections.map(sec=>`
+    <div style="margin-bottom:20px;">
+      <div class="settings-section-title">${sec.title}</div>
+      <div class="card" style="overflow:hidden;">
+        ${sec.items.map(item=>`
+          <div class="settings-row">
+            <div class="settings-icon">${item.icon}</div>
+            <div style="flex:1;">
+              <div style="font-size:14px;color:var(--text);">${item.label}</div>
+              ${item.sub?`<div style="font-size:12px;color:var(--muted);">${item.sub}</div>`:''}
+            </div>
+            ${item.toggle
+              ? `<button class="toggle ${item.on?'on':'off'}" onclick="this.classList.toggle('on');this.classList.toggle('off')"></button>`
+              : `<span style="color:var(--muted);font-size:16px;">›</span>`}
+          </div>`).join('')}
+      </div>
+    </div>`).join('') + `
+    <div style="text-align:center;padding:8px 0 20px;">
+      <div style="font-size:28px;color:var(--primary);font-family:var(--font-ar);">ن</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px;">نفاضل v1.0.0</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px;">مرخص من هيئة الاتصالات السعودية 🇸🇦</div>
+    </div>`;
 }
 
-function renderTrackHistory() { }
+// ============================================================
+// TRACKING HISTORY
+// ============================================================
+function renderTrackHistory() {
+  const el = document.getElementById('tracking-history');
+  el.innerHTML = trackHistory.map((h,i)=>`
+    <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:${i<trackHistory.length-1?12:0}px;">
+      <div style="display:flex;flex-direction:column;align-items:center;min-width:50px;">
+        <span style="font-size:11px;color:var(--muted);font-family:monospace;">${h.time}</span>
+        ${i<trackHistory.length-1?'<div style="width:2px;height:24px;background:var(--border);margin:4px 0;"></div>':''}
+      </div>
+      <div style="flex:1;background:${h.alert?'var(--error-bg)':'var(--primary-bg)'};border-radius:10px;padding:8px 12px;border:1px solid ${h.alert?'rgba(192,57,43,0.25)':'var(--border)'};">
+        <span style="font-size:13px;color:${h.alert?'var(--error)':'var(--text)'};">${h.place}</span>
+      </div>
+    </div>`).join('');
+}
+
+// ============================================================
+// CHILD HOME — ألوان حية تناسب الأطفال
+// ============================================================
 function renderChildHome() {
   const content = document.getElementById('child-home-content');
-  if(content) content.innerHTML = `
-    <div class="card card-body" style="background:linear-gradient(135deg,var(--success-bg),#f0fbf4);"><div style="font-weight:700;">🏆 إنجازات اليوم</div><div style="display:flex;gap:10px;margin-top:10px;"><div style="flex:1;text-align:center;background:white;border-radius:14px;padding:12px;">📖 قرآن ✅</div><div style="flex:1;text-align:center;background:white;border-radius:14px;padding:12px;">🕌 حديث ✅</div><div style="flex:1;text-align:center;background:white;border-radius:14px;padding:12px;">📱 وقتي ⭕</div></div></div>
-    <div class="card card-body"><div style="font-weight:700;">📱 تطبيقاتي المسموحة</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:10px;"><div style="text-align:center;padding:12px;background:var(--primary-bg);border-radius:14px;">📖 القرآن</div><div style="text-align:center;padding:12px;background:var(--primary-bg);border-radius:14px;">▶️ يوتيوب كيدز</div><div style="text-align:center;padding:12px;background:var(--primary-bg);border-radius:14px;">🎮 ماينكرافت</div></div></div>
-    <div class="card card-body"><button class="btn btn-outline" onclick="alert('تم إرسال الطلب لوالدك ✅')">📩 طلب وقت إضافي</button></div>`;
+  const kidColors = ['#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#FFEAA7','#DDA0DD','#98D8C8','#FFB347'];
+  content.innerHTML = `
+    <!-- إنجازات — خطوط ملونة -->
+    <div style="background:white;border-radius:20px;padding:16px;margin-bottom:14px;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+      <div style="font-size:14px;font-weight:700;color:#333;margin-bottom:12px;">🏆 إنجازات اليوم</div>
+      <div style="display:flex;gap:10px;">
+        ${[
+          {icon:'📖',label:'قرآن',done:true,color:'#4ECDC4'},
+          {icon:'🕌',label:'حديث',done:true,color:'#45B7D1'},
+          {icon:'📱',label:'وقتي',done:false,color:'#FFB347'}
+        ].map(a=>`
+          <div style="flex:1;text-align:center;border-radius:16px;padding:14px 6px;
+            background:${a.done?a.color+'18':'#f5f5f5'};
+            border:3px solid ${a.done?a.color:'#ddd'};
+            transition:all 0.3s;">
+            <div style="font-size:28px;">${a.icon}</div>
+            <div style="font-size:11px;color:${a.done?a.color:'#999'};margin-top:4px;font-weight:800;">${a.label}</div>
+            <div style="font-size:18px;margin-top:2px;">${a.done?'✅':'⭕'}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- شريط الوقت الملون -->
+    <div style="background:linear-gradient(135deg,#667eea,#764ba2);border-radius:20px;padding:16px;margin-bottom:14px;color:white;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="font-size:14px;font-weight:700;">⏱ وقتي المتبقي</span>
+        <span style="font-size:20px;font-weight:800;">1:30</span>
+      </div>
+      <div style="height:12px;background:rgba(255,255,255,0.2);border-radius:6px;overflow:hidden;">
+        <div style="height:100%;width:60%;background:linear-gradient(90deg,#FFEAA7,#FFB347);border-radius:6px;animation:pulse 2s infinite;"></div>
+      </div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.8);margin-top:6px;">ينتهي الساعة 9:00 مساءً</div>
+    </div>
+
+    <!-- تطبيقاتي — بألوان تناسب الأطفال -->
+    <div style="font-size:14px;font-weight:800;color:#333;margin-bottom:12px;">📱 تطبيقاتي</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;">
+      ${[
+        {icon:'📖',name:'القرآن',    color:'#4ECDC4'},
+        {icon:'▶️',name:'يوتيوب',    color:'#FF6B6B'},
+        {icon:'🎮',name:'ألعاب',     color:'#45B7D1'},
+        {icon:'🧮',name:'رياضيات',   color:'#96CEB4'},
+        {icon:'🎨',name:'رسم',       color:'#DDA0DD'},
+        {icon:'📚',name:'قصص',       color:'#FFB347'}
+      ].map((a,i)=>`
+        <div style="background:white;border-radius:18px;padding:14px 8px;text-align:center;cursor:pointer;
+          box-shadow:0 4px 12px ${a.color}30;
+          border-bottom:4px solid ${a.color};
+          transition:transform 0.15s;"
+          onmousedown="this.style.transform='scale(0.94)'"
+          onmouseup="this.style.transform='scale(1)'"
+          ontouchstart="this.style.transform='scale(0.94)'"
+          ontouchend="this.style.transform='scale(1)'">
+          <div style="font-size:30px;margin-bottom:6px;">${a.icon}</div>
+          <div style="font-size:10px;font-weight:800;color:#444;">${a.name}</div>
+        </div>`).join('')}
+    </div>
+
+    <!-- طلب وقت -->
+    <div style="background:linear-gradient(135deg,#f093fb,#f5576c);border-radius:20px;padding:16px;margin-bottom:14px;color:white;text-align:center;">
+      <div style="font-size:22px;margin-bottom:6px;">🙏</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px;">تبي وقت أكثر؟</div>
+      <div style="font-size:12px;opacity:0.85;margin-bottom:12px;">اطلب من والدك 30 دقيقة إضافية</div>
+      <button onclick="alert('تم إرسال الطلب لوالدك! ✅')"
+        style="background:white;color:#f5576c;border:none;border-radius:14px;padding:10px 24px;font-weight:800;font-size:14px;cursor:pointer;">
+        📩 أرسل طلب
+      </button>
+    </div>`;
 }
 
-function generateStars() {
-  const container = document.getElementById('stars-container');
-  if(container) { container.innerHTML = ''; for(let i=0;i<40;i++) { let s = document.createElement('div'); s.style.cssText = `position:absolute;width:${Math.random()*3+1}px;height:${Math.random()*3+1}px;background:white;border-radius:50%;top:${Math.random()*100}%;left:${Math.random()*100}%;opacity:${Math.random()*0.5+0.3};animation:twinkle ${Math.random()*3+2}s infinite;`; container.appendChild(s); } }
+// ============================================================
+// QURAN — تشغيل آية بآية + ظل يمشي
+// ============================================================
+let currentVerse = 0;
+let verseDone = [false, false, false];
+let hadithDone = [false, false, false];
+let currentHadith = -1;
+let hadithInterval = null;
+let verseInterval = null;
+let verseProgress = 0;
+
+function generateStars() { /* لا نحتاجها بعد التعديل */ }
+
+function goChild() {
+  currentVerse = 0;
+  verseDone    = [false,false,false];
+  hadithDone   = [false,false,false];
+  verseProgress= 0;
+  document.getElementById('quran-phase-1').style.display = 'flex';
+  document.getElementById('quran-phase-2').style.display = 'none';
+  resetVerseUI();
+  showScreen('screen-quran');
 }
 
-// إضافة نمط الظل المتحرك
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `@keyframes shadowMove { 0% { left: -100%; } 20% { left: 0%; } 80% { left: 0%; } 100% { left: 100%; } }`;
-document.head.appendChild(styleSheet);
+function resetVerseUI() {
+  selectVerse(0);
+  const prog = document.getElementById('quran-progress');
+  const pct  = document.getElementById('play-pct');
+  const stat = document.getElementById('play-status');
+  const hint = document.getElementById('unlock-hint');
+  if(prog) prog.style.width = '0%';
+  if(pct)  pct.textContent  = '0%';
+  if(stat) stat.textContent = 'اضغط للاستماع للآية الأولى';
+  if(hint) hint.textContent = '🔒 اسمع الآيات الثلاث للمتابعة';
+  const btn = document.getElementById('play-btn');
+  if(btn){ btn.textContent='▶️'; btn.disabled=false; btn.style.background='linear-gradient(135deg,#B05A2F,#D4784A)'; }
+}
 
-// بدء التطبيق
-setTimeout(() => { showScreen('screen-splash'); setTimeout(() => showScreen('screen-demo'), 2000); }, 100);
+function selectVerse(idx) {
+  for(let i=0;i<3;i++){
+    const row = document.getElementById('verse-row-'+i);
+    const sh  = document.getElementById('shimmer-'+i);
+    const dot = document.getElementById('dot-v'+i);
+    if(!row) continue;
+    if(i === idx){
+      row.style.border      = '2px solid #B05A2F';
+      row.style.background  = 'rgba(176,90,47,0.06)';
+      row.style.opacity     = '1';
+    } else if(verseDone[i]){
+      row.style.border      = '2px solid rgba(45,138,78,0.4)';
+      row.style.background  = 'rgba(45,138,78,0.05)';
+      row.style.opacity     = '1';
+    } else {
+      row.style.border      = '2px solid transparent';
+      row.style.background  = 'transparent';
+      row.style.opacity     = '0.35';
+    }
+    if(sh) sh.style.display = 'none';
+    if(dot){
+      dot.style.width  = i===idx ? '28px' : '6px';
+      dot.style.background = verseDone[i] ? '#2D8A4E' : i===idx ? '#B05A2F' : 'rgba(176,90,47,0.25)';
+    }
+  }
+  currentVerse = idx;
+}
+
+function startVersePlay() {
+  if(verseInterval) return;
+  const btn  = document.getElementById('play-btn');
+  const stat = document.getElementById('play-status');
+  const hint = document.getElementById('unlock-hint');
+  const sh   = document.getElementById('shimmer-'+currentVerse);
+
+  btn.textContent       = '🔊';
+  btn.disabled          = true;
+  btn.style.background  = 'rgba(176,90,47,0.4)';
+  if(sh) sh.style.display = 'block';
+  if(stat) stat.textContent = '🔊 جاري التلاوة...';
+
+  verseProgress = 0;
+  verseInterval = setInterval(()=>{
+    verseProgress += 2;
+    const prog = document.getElementById('quran-progress');
+    const pct  = document.getElementById('play-pct');
+    if(prog) prog.style.width = verseProgress + '%';
+    if(pct)  pct.textContent  = Math.floor(verseProgress) + '%';
+
+    if(verseProgress >= 100){
+      clearInterval(verseInterval);
+      verseInterval = null;
+      verseDone[currentVerse] = true;
+      const sh2 = document.getElementById('shimmer-'+currentVerse);
+      if(sh2) sh2.style.display = 'none';
+
+      // علّم الآية كمكتملة
+      const row = document.getElementById('verse-row-'+currentVerse);
+      if(row){ row.style.border='2px solid rgba(45,138,78,0.5)'; row.style.background='rgba(45,138,78,0.06)'; }
+      const dot = document.getElementById('dot-v'+currentVerse);
+      if(dot){ dot.style.background='#2D8A4E'; dot.style.width='6px'; }
+
+      const nextVerse = currentVerse + 1;
+      verseProgress = 0;
+      const prog2 = document.getElementById('quran-progress');
+      const pct2  = document.getElementById('play-pct');
+      if(prog2) prog2.style.width = '0%';
+      if(pct2)  pct2.textContent  = '0%';
+
+      if(nextVerse < 3){
+        // انتقل للآية التالية تلقائياً بعد ثانية
+        setTimeout(()=>{
+          selectVerse(nextVerse);
+          const btn2 = document.getElementById('play-btn');
+          const stat2= document.getElementById('play-status');
+          const cnt  = document.getElementById('verse-counter-top');
+          if(btn2){ btn2.textContent='▶️'; btn2.disabled=false; btn2.style.background='linear-gradient(135deg,#B05A2F,#D4784A)'; }
+          if(stat2) stat2.textContent = `اضغط للاستماع للآية ${nextVerse+1}`;
+          if(cnt)   cnt.textContent   = `الآية ${nextVerse+1} من 3`;
+          const hint2 = document.getElementById('unlock-hint');
+          if(hint2) hint2.textContent = `✅ ${nextVerse} من 3 — تبقّت ${3-nextVerse}`;
+        }, 700);
+      } else {
+        // كل الآيات خلصت — انتقل للأحاديث
+        if(stat) stat.textContent = '✅ أحسنت! أكملت الآيات';
+        if(hint) hint.textContent = '🎉 رائع! ننتقل للأحاديث...';
+        setTimeout(()=>{
+          document.getElementById('quran-phase-1').style.display = 'none';
+          document.getElementById('quran-phase-2').style.display = 'flex';
+          // فعّل الحديث الأول
+          unlockHadith(0);
+        }, 1200);
+      }
+    }
+  }, 80);
+}
+
+// بعد ما يخلص القرآن — الأحاديث
+function unlockHadith(idx) {
+  const item = document.getElementById('hadith-item-'+idx);
+  if(item){
+    item.style.opacity        = '1';
+    item.style.pointerEvents  = 'auto';
+    item.style.border         = '1px solid rgba(74,222,128,0.4)';
+    item.style.background     = 'rgba(255,255,255,0.1)';
+  }
+}
+
+function listenHadith(idx) {
+  if(hadithDone[idx]) return;
+  if(hadithInterval) return;
+  let prog = 0;
+  const fill = document.getElementById('hadith-fill-'+idx);
+  const bar  = document.getElementById('hadith-prog-'+idx);
+  const done = document.getElementById('hadith-done-'+idx);
+  const item = document.getElementById('hadith-item-'+idx);
+  if(bar) bar.style.display = 'block';
+
+  hadithInterval = setInterval(()=>{
+    prog += 2;
+    if(fill) fill.style.width = prog + '%';
+    if(prog >= 100){
+      clearInterval(hadithInterval);
+      hadithInterval = null;
+      hadithDone[idx] = true;
+      if(done) done.style.display = 'block';
+      if(item){ item.style.border='1px solid rgba(74,222,128,0.6)'; item.style.background='rgba(74,222,128,0.08)'; }
+
+      const next = idx + 1;
+      if(next < 3){
+        setTimeout(()=>unlockHadith(next), 500);
+        const h2 = document.getElementById('unlock-hint-2');
+        if(h2) h2.textContent = `✅ ${next} من 3 أحاديث — تبقّت ${3-next}`;
+      } else {
+        // كل الأحاديث اكتملت — أظهر زر الفتح
+        showFinalUnlock();
+      }
+    }
+  }, 80);
+}
+
+function showFinalUnlock() {
+  const section = document.getElementById('unlock-section');
+  section.innerHTML = `
+    <button onclick="goChildHome()"
+      style="width:100%;padding:20px;border-radius:20px;border:none;
+      background:linear-gradient(135deg,#4ECDC4,#2D8A4E);
+      color:white;font-size:18px;font-weight:800;
+      font-family:var(--font-ui);cursor:pointer;
+      box-shadow:0 10px 32px rgba(45,138,78,0.5);
+      animation:fadeIn 0.5s ease,glow 2s infinite;
+      display:flex;align-items:center;justify-content:center;gap:10px;">
+      🔓 افتح الجهاز بسم الله
+    </button>`;
+}
+
+// دالة قديمة — محتفظ بها لعدم كسر أي شي
+function startPlay() { startVersePlay(); }
+function showUnlockButton() { showFinalUnlock(); }
+
+function goChildHome() {
+  renderChildHome();
+  showScreen('screen-child-home');
+}
+
+// ============================================================
+// PWA INSTALL
+// ============================================================
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  setTimeout(()=>{ document.getElementById('install-banner').classList.add('show'); }, 3000);
+});
+
+function installApp() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(()=>{ deferredPrompt=null; document.getElementById('install-banner').classList.remove('show'); });
+  } else {
+    alert('لتثبيت التطبيق:\niPhone: اضغط مشاركة ← "إضافة للشاشة الرئيسية"\nAndroid: اضغط ⋮ ← "تثبيت التطبيق"');
+  }
+  document.getElementById('install-banner').classList.remove('show');
+}
+
+// ============================================================
+// SERVICE WORKER (PWA offline)
+// ============================================================
+if ('serviceWorker' in navigator) {
+  const sw = `
+    const CACHE='nafadil-v1';
+    const ASSETS=['/'];
+    self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
+    self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));
+  `;
+  const swBlob = new Blob([sw], {type:'application/javascript'});
+  const swURL  = URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swURL).catch(()=>{});
+}
+
+// ============================================================
+// BOOT SEQUENCE
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    showScreen('screen-demo');
+  }, 2200);
+});
 </script>
 </body>
 </html>
-```# Nafadil-cloud-
